@@ -1,0 +1,289 @@
+Date,Sales Channel,Customer Tenure,Invol_Churn_Value
+2021-Q1,digital,0-12Months,157236
+2021-Q1,digital,13-24Months,152864
+2021-Q1,digital,25-36Months,154266
+2021-Q1,stores,0-12Months,120904
+2021-Q1,stores,13-24Months,155335
+2021-Q1,stores,25-36Months,136760
+2021-Q1,national retailer,0-12Months,153237
+2021-Q1,national retailer,13-24Months,166851
+2021-Q1,national retailer,25-36Months,113796
+2021-Q2,digital,0-12Months,126521
+2021-Q2,digital,13-24Months,169144
+2021-Q2,digital,25-36Months,117596
+2021-Q2,stores,0-12Months,129094
+2021-Q2,stores,13-24Months,153266
+2021-Q2,stores,25-36Months,161948
+2021-Q2,national retailer,0-12Months,100761
+2021-Q2,national retailer,13-24Months,116817
+2021-Q2,national retailer,25-36Months,109877
+2021-Q3,digital,0-12Months,176918
+2021-Q3,digital,13-24Months,132886
+2021-Q3,digital,25-36Months,146150
+2021-Q3,stores,0-12Months,106292
+2021-Q3,stores,13-24Months,107839
+2021-Q3,stores,25-36Months,179239
+2021-Q3,national retailer,0-12Months,165015
+2021-Q3,national retailer,13-24Months,139709
+2021-Q3,national retailer,25-36Months,134139
+2021-Q4,digital,0-12Months,174955
+2021-Q4,digital,13-24Months,145239
+2021-Q4,digital,25-36Months,176392
+2021-Q4,stores,0-12Months,123144
+2021-Q4,stores,13-24Months,178692
+2021-Q4,stores,25-36Months,103678
+2021-Q4,national retailer,0-12Months,111883
+2021-Q4,national retailer,13-24Months,105908
+2021-Q4,national retailer,25-36Months,167443
+2022-Q1,digital,0-12Months,167108
+2022-Q1,digital,13-24Months,130470
+2022-Q1,digital,25-36Months,159444
+2022-Q1,stores,0-12Months,144691
+2022-Q1,stores,13-24Months,172136
+2022-Q1,stores,25-36Months,175054
+2022-Q1,national retailer,0-12Months,137025
+2022-Q1,national retailer,13-24Months,113538
+2022-Q1,national retailer,25-36Months,152717
+2022-Q2,digital,0-12Months,131636
+2022-Q2,digital,13-24Months,126293
+2022-Q2,digital,25-36Months,144825
+2022-Q2,stores,0-12Months,171632
+2022-Q2,stores,13-24Months,115073
+2022-Q2,stores,25-36Months,108162
+2022-Q2,national retailer,0-12Months,130803
+2022-Q2,national retailer,13-24Months,104593
+2022-Q2,national retailer,25-36Months,113004
+2022-Q3,digital,0-12Months,159622
+2022-Q3,digital,13-24Months,150619
+2022-Q3,digital,25-36Months,146554
+2022-Q3,stores,0-12Months,173467
+2022-Q3,stores,13-24Months,157550
+2022-Q3,stores,25-36Months,122729
+2022-Q3,national retailer,0-12Months,114909
+2022-Q3,national retailer,13-24Months,123517
+2022-Q3,national retailer,25-36Months,122786
+2022-Q4,digital,0-12Months,123858
+2022-Q4,digital,13-24Months,119336
+2022-Q4,digital,25-36Months,148076
+2022-Q4,stores,0-12Months,113914
+2022-Q4,stores,13-24Months,155311
+2022-Q4,stores,25-36Months,120760
+2022-Q4,national retailer,0-12Months,176018
+2022-Q4,national retailer,13-24Months,115077
+2022-Q4,national retailer,25-36Months,154191
+2023-Q1,digital,0-12Months,108869
+2023-Q1,digital,13-24Months,107976
+2023-Q1,digital,25-36Months,139927
+2023-Q1,stores,0-12Months,158225
+2023-Q1,stores,13-24Months,115452
+2023-Q1,stores,25-36Months,103658
+2023-Q1,national retailer,0-12Months,131865
+2023-Q1,national retailer,13-24Months,101497
+2023-Q1,national retailer,25-36Months,103407
+2023-Q2,digital,0-12Months,104922
+2023-Q2,digital,13-24Months,144978
+2023-Q2,digital,25-36Months,177237
+2023-Q2,stores,0-12Months,127668
+2023-Q2,stores,13-24Months,148026
+2023-Q2,stores,25-36Months,161744
+2023-Q2,national retailer,0-12Months,113561
+2023-Q2,national retailer,13-24Months,172493
+2023-Q2,national retailer,25-36Months,123210
+2023-Q3,digital,0-12Months,148176
+2023-Q3,digital,13-24Months,157446
+2023-Q3,digital,25-36Months,164600
+2023-Q3,stores,0-12Months,152654
+2023-Q3,stores,13-24Months,146884
+2023-Q3,stores,25-36Months,175553
+2023-Q3,national retailer,0-12Months,111989
+2023-Q3,national retailer,13-24Months,128504
+2023-Q3,national retailer,25-36Months,106557
+2023-Q4,digital,0-12Months,101211
+2023-Q4,digital,13-24Months,144606
+2023-Q4,digital,25-36Months,104886
+2023-Q4,stores,0-12Months,144864
+2023-Q4,stores,13-24Months,103489
+2023-Q4,stores,25-36Months,143059
+2023-Q4,national retailer,0-12Months,177738
+2023-Q4,national retailer,13-24Months,150997
+2023-Q4,national retailer,25-36Months,174935
+2024-Q1,digital,0-12Months,159081
+2024-Q1,digital,13-24Months,142592
+2024-Q1,digital,25-36Months,155790
+2024-Q1,stores,0-12Months,142876
+2024-Q1,stores,13-24Months,110768
+2024-Q1,stores,25-36Months,121216
+2024-Q1,national retailer,0-12Months,123741
+2024-Q1,national retailer,13-24Months,144538
+2024-Q1,national retailer,25-36Months,147063
+2024-Q2,digital,0-12Months,147892
+2024-Q2,digital,13-24Months,122759
+2024-Q2,digital,25-36Months,166723
+2024-Q2,stores,0-12Months,138376
+2024-Q2,stores,13-24Months,152582
+2024-Q2,stores,25-36Months,127668
+2024-Q2,national retailer,0-12Months,162873
+2024-Q2,national retailer,13-24Months,154865
+2024-Q2,national retailer,25-36Months,135445
+2024-Q3,digital,0-12Months,154076
+2024-Q3,digital,13-24Months,146018
+2024-Q3,digital,25-36Months,136224
+2024-Q3,stores,0-12Months,157305
+2024-Q3,stores,13-24Months,177909
+2024-Q3,stores,25-36Months,113026
+2024-Q3,national retailer,0-12Months,177939
+2024-Q3,national retailer,13-24Months,153545
+2024-Q3,national retailer,25-36Months,145075
+2024-Q4,digital,0-12Months,102636
+2024-Q4,digital,13-24Months,169037
+2024-Q4,digital,25-36Months,109437
+2024-Q4,stores,0-12Months,102889
+2024-Q4,stores,13-24Months,159827
+2024-Q4,stores,25-36Months,129539
+2024-Q4,national retailer,0-12Months,170755
+2024-Q4,national retailer,13-24Months,118358
+2024-Q4,national retailer,25-36Months,142993
+2025-Q1,digital,0-12Months,177444
+2025-Q1,digital,13-24Months,137645
+2025-Q1,digital,25-36Months,173888
+2025-Q1,stores,0-12Months,133794
+2025-Q1,stores,13-24Months,167179
+2025-Q1,stores,25-36Months,145884
+2025-Q1,national retailer,0-12Months,159033
+2025-Q1,national retailer,13-24Months,147731
+2025-Q1,national retailer,25-36Months,118597
+2025-Q2,digital,0-12Months,142869
+2025-Q2,digital,13-24Months,114357
+2025-Q2,digital,25-36Months,160258
+2025-Q2,stores,0-12Months,162566
+2025-Q2,stores,13-24Months,169687
+2025-Q2,stores,25-36Months,169073
+2025-Q2,national retailer,0-12Months,123585
+2025-Q2,national retailer,13-24Months,148823
+2025-Q2,national retailer,25-36Months,101617
+2025-Q3,digital,0-12Months,102909
+2025-Q3,digital,13-24Months,177534
+2025-Q3,digital,25-36Months,111892
+2025-Q3,stores,0-12Months,131986
+2025-Q3,stores,13-24Months,117149
+2025-Q3,stores,25-36Months,163830
+2025-Q3,national retailer,0-12Months,112888
+2025-Q3,national retailer,13-24Months,124129
+2025-Q3,national retailer,25-36Months,157504
+2025-Q4,digital,0-12Months,136122
+2025-Q4,digital,13-24Months,161383
+2025-Q4,digital,25-36Months,155684
+2025-Q4,stores,0-12Months,158896
+2025-Q4,stores,13-24Months,124850
+2025-Q4,stores,25-36Months,128809
+2025-Q4,national retailer,0-12Months,142333
+2025-Q4,national retailer,13-24Months,117084
+2025-Q4,national retailer,25-36Months,115114
+2026-Q1,digital,0-12Months,153087
+2026-Q1,digital,13-24Months,119281
+2026-Q1,digital,25-36Months,134776
+2026-Q1,stores,0-12Months,105103
+2026-Q1,stores,13-24Months,104574
+2026-Q1,stores,25-36Months,174558
+2026-Q1,national retailer,0-12Months,136568
+2026-Q1,national retailer,13-24Months,169690
+2026-Q1,national retailer,25-36Months,158636
+2026-Q2,digital,0-12Months,128874
+2026-Q2,digital,13-24Months,160108
+2026-Q2,digital,25-36Months,178126
+2026-Q2,stores,0-12Months,122936
+2026-Q2,stores,13-24Months,152145
+2026-Q2,stores,25-36Months,108915
+2026-Q2,national retailer,0-12Months,169811
+2026-Q2,national retailer,13-24Months,113950
+2026-Q2,national retailer,25-36Months,170516
+2026-Q3,digital,0-12Months,125092
+2026-Q3,digital,13-24Months,157724
+2026-Q3,digital,25-36Months,173707
+2026-Q3,stores,0-12Months,158709
+2026-Q3,stores,13-24Months,166148
+2026-Q3,stores,25-36Months,165525
+2026-Q3,national retailer,0-12Months,174163
+2026-Q3,national retailer,13-24Months,100671
+2026-Q3,national retailer,25-36Months,153173
+2026-Q4,digital,0-12Months,122944
+2026-Q4,digital,13-24Months,121564
+2026-Q4,digital,25-36Months,158273
+2026-Q4,stores,0-12Months,134116
+2026-Q4,stores,13-24Months,104976
+2026-Q4,stores,25-36Months,146082
+2026-Q4,national retailer,0-12Months,146588
+2026-Q4,national retailer,13-24Months,137526
+2026-Q4,national retailer,25-36Months,172803
+2027-Q1,digital,0-12Months,159360
+2027-Q1,digital,13-24Months,139007
+2027-Q1,digital,25-36Months,151208
+2027-Q1,stores,0-12Months,103427
+2027-Q1,stores,13-24Months,138693
+2027-Q1,stores,25-36Months,103885
+2027-Q1,national retailer,0-12Months,175168
+2027-Q1,national retailer,13-24Months,100014
+2027-Q1,national retailer,25-36Months,122119
+2027-Q2,digital,0-12Months,100252
+2027-Q2,digital,13-24Months,164990
+2027-Q2,digital,25-36Months,120306
+2027-Q2,stores,0-12Months,134080
+2027-Q2,stores,13-24Months,127740
+2027-Q2,stores,25-36Months,132192
+2027-Q2,national retailer,0-12Months,142106
+2027-Q2,national retailer,13-24Months,157781
+2027-Q2,national retailer,25-36Months,179139
+2027-Q3,digital,0-12Months,117930
+2027-Q3,digital,13-24Months,109373
+2027-Q3,digital,25-36Months,149601
+2027-Q3,stores,0-12Months,172031
+2027-Q3,stores,13-24Months,163850
+2027-Q3,stores,25-36Months,145013
+2027-Q3,national retailer,0-12Months,100718
+2027-Q3,national retailer,13-24Months,148505
+2027-Q3,national retailer,25-36Months,175187
+2027-Q4,digital,0-12Months,138196
+2027-Q4,digital,13-24Months,168740
+2027-Q4,digital,25-36Months,137924
+2027-Q4,stores,0-12Months,175244
+2027-Q4,stores,13-24Months,110702
+2027-Q4,stores,25-36Months,114376
+2027-Q4,national retailer,0-12Months,164181
+2027-Q4,national retailer,13-24Months,134178
+2027-Q4,national retailer,25-36Months,155690
+2028-Q1,digital,0-12Months,157912
+2028-Q1,digital,13-24Months,173327
+2028-Q1,digital,25-36Months,155696
+2028-Q1,stores,0-12Months,122982
+2028-Q1,stores,13-24Months,128707
+2028-Q1,stores,25-36Months,124378
+2028-Q1,national retailer,0-12Months,176480
+2028-Q1,national retailer,13-24Months,175392
+2028-Q1,national retailer,25-36Months,110386
+2028-Q2,digital,0-12Months,123285
+2028-Q2,digital,13-24Months,118675
+2028-Q2,digital,25-36Months,132982
+2028-Q2,stores,0-12Months,136705
+2028-Q2,stores,13-24Months,160952
+2028-Q2,stores,25-36Months,176115
+2028-Q2,national retailer,0-12Months,164499
+2028-Q2,national retailer,13-24Months,107022
+2028-Q2,national retailer,25-36Months,133467
+2028-Q3,digital,0-12Months,166274
+2028-Q3,digital,13-24Months,176551
+2028-Q3,digital,25-36Months,107647
+2028-Q3,stores,0-12Months,144404
+2028-Q3,stores,13-24Months,177321
+2028-Q3,stores,25-36Months,174824
+2028-Q3,national retailer,0-12Months,148848
+2028-Q3,national retailer,13-24Months,125643
+2028-Q3,national retailer,25-36Months,119223
+2028-Q4,digital,0-12Months,148603
+2028-Q4,digital,13-24Months,135108
+2028-Q4,digital,25-36Months,121199
+2028-Q4,stores,0-12Months,151153
+2028-Q4,stores,13-24Months,164629
+2028-Q4,stores,25-36Months,164870
+2028-Q4,national retailer,0-12Months,118965
+2028-Q4,national retailer,13-24Months,138848
+2028-Q4,national retailer,25-36Months,133669

@@ -1,0 +1,193 @@
+Date,Macroeconomic Indicator Name,Value
+2021-Q1,consumer credit,3000125.0
+2021-Q1,business confidence,89.14
+2021-Q1,gdp adjusted for inflation,1.14
+2021-Q1,unemployment rate,5.76
+2021-Q1,financial liabilities,15026582.0
+2021-Q1,savings rate,11.51
+2021-Q2,consumer credit,3030058.0
+2021-Q2,business confidence,106.12
+2021-Q2,gdp adjusted for inflation,1.87
+2021-Q2,unemployment rate,5.97
+2021-Q2,financial liabilities,15132638.0
+2021-Q2,savings rate,5.15
+2021-Q3,consumer credit,3089780.0
+2021-Q3,business confidence,94.41
+2021-Q3,gdp adjusted for inflation,0.12
+2021-Q3,unemployment rate,5.48
+2021-Q3,financial liabilities,15226968.0
+2021-Q3,savings rate,5.4
+2021-Q4,consumer credit,3139708.0
+2021-Q4,business confidence,102.01
+2021-Q4,gdp adjusted for inflation,-0.2
+2021-Q4,unemployment rate,5.87
+2021-Q4,financial liabilities,15312781.0
+2021-Q4,savings rate,4.12
+2022-Q1,consumer credit,3207270.0
+2022-Q1,business confidence,94.13
+2022-Q1,gdp adjusted for inflation,2.39
+2022-Q1,unemployment rate,3.52
+2022-Q1,financial liabilities,15431225.0
+2022-Q1,savings rate,4.07
+2022-Q2,consumer credit,3230826.0
+2022-Q2,business confidence,87.65
+2022-Q2,gdp adjusted for inflation,0.43
+2022-Q2,unemployment rate,4.59
+2022-Q2,financial liabilities,15466076.0
+2022-Q2,savings rate,9.27
+2022-Q3,consumer credit,3309595.0
+2022-Q3,business confidence,88.29
+2022-Q3,gdp adjusted for inflation,2.47
+2022-Q3,unemployment rate,4.79
+2022-Q3,financial liabilities,15622602.0
+2022-Q3,savings rate,11.42
+2022-Q4,consumer credit,3368327.0
+2022-Q4,business confidence,100.34
+2022-Q4,gdp adjusted for inflation,2.5
+2022-Q4,unemployment rate,4.04
+2022-Q4,financial liabilities,15681846.0
+2022-Q4,savings rate,6.67
+2023-Q1,consumer credit,3398486.0
+2023-Q1,business confidence,104.62
+2023-Q1,gdp adjusted for inflation,2.05
+2023-Q1,unemployment rate,4.47
+2023-Q1,financial liabilities,15809408.0
+2023-Q1,savings rate,9.77
+2023-Q2,consumer credit,3447235.0
+2023-Q2,business confidence,85.04
+2023-Q2,gdp adjusted for inflation,-0.08
+2023-Q2,unemployment rate,5.57
+2023-Q2,financial liabilities,15935487.0
+2023-Q2,savings rate,6.52
+2023-Q3,consumer credit,3489749.0
+2023-Q3,business confidence,113.08
+2023-Q3,gdp adjusted for inflation,1.62
+2023-Q3,unemployment rate,5.14
+2023-Q3,financial liabilities,15958555.0
+2023-Q3,savings rate,4.13
+2023-Q4,consumer credit,3559848.0
+2023-Q4,business confidence,112.55
+2023-Q4,gdp adjusted for inflation,1.07
+2023-Q4,unemployment rate,4.21
+2023-Q4,financial liabilities,16128812.0
+2023-Q4,savings rate,6.35
+2024-Q1,consumer credit,3589591.0
+2024-Q1,business confidence,113.08
+2024-Q1,gdp adjusted for inflation,1.26
+2024-Q1,unemployment rate,6.31
+2024-Q1,financial liabilities,16178573.0
+2024-Q1,savings rate,6.21
+2024-Q2,consumer credit,3663777.0
+2024-Q2,business confidence,94.45
+2024-Q2,gdp adjusted for inflation,-0.65
+2024-Q2,unemployment rate,6.22
+2024-Q2,financial liabilities,16329988.0
+2024-Q2,savings rate,6.13
+2024-Q3,consumer credit,3693614.0
+2024-Q3,business confidence,88.37
+2024-Q3,gdp adjusted for inflation,0.63
+2024-Q3,unemployment rate,5.85
+2024-Q3,financial liabilities,16393776.0
+2024-Q3,savings rate,8.24
+2024-Q4,consumer credit,3750392.0
+2024-Q4,business confidence,111.1
+2024-Q4,gdp adjusted for inflation,-0.88
+2024-Q4,unemployment rate,4.33
+2024-Q4,financial liabilities,16461866.0
+2024-Q4,savings rate,4.19
+2025-Q1,consumer credit,3811951.0
+2025-Q1,business confidence,89.11
+2025-Q1,gdp adjusted for inflation,2.19
+2025-Q1,unemployment rate,4.41
+2025-Q1,financial liabilities,16564697.0
+2025-Q1,savings rate,6.87
+2025-Q2,consumer credit,3850651.0
+2025-Q2,business confidence,113.47
+2025-Q2,gdp adjusted for inflation,0.73
+2025-Q2,unemployment rate,3.68
+2025-Q2,financial liabilities,16683921.0
+2025-Q2,savings rate,7.28
+2025-Q3,consumer credit,3893994.0
+2025-Q3,business confidence,91.79
+2025-Q3,gdp adjusted for inflation,0.59
+2025-Q3,unemployment rate,4.59
+2025-Q3,financial liabilities,16816688.0
+2025-Q3,savings rate,7.09
+2025-Q4,consumer credit,3934888.0
+2025-Q4,business confidence,86.34
+2025-Q4,gdp adjusted for inflation,0.46
+2025-Q4,unemployment rate,5.77
+2025-Q4,financial liabilities,16887241.0
+2025-Q4,savings rate,5.06
+2026-Q1,consumer credit,3997436.0
+2026-Q1,business confidence,104.75
+2026-Q1,gdp adjusted for inflation,0.42
+2026-Q1,unemployment rate,3.6
+2026-Q1,financial liabilities,16976089.0
+2026-Q1,savings rate,7.37
+2026-Q2,consumer credit,4051702.0
+2026-Q2,business confidence,103.51
+2026-Q2,gdp adjusted for inflation,-0.13
+2026-Q2,unemployment rate,6.41
+2026-Q2,financial liabilities,17114293.0
+2026-Q2,savings rate,9.01
+2026-Q3,consumer credit,4107144.0
+2026-Q3,business confidence,107.92
+2026-Q3,gdp adjusted for inflation,-0.47
+2026-Q3,unemployment rate,5.18
+2026-Q3,financial liabilities,17189296.0
+2026-Q3,savings rate,6.93
+2026-Q4,consumer credit,4149442.0
+2026-Q4,business confidence,90.76
+2026-Q4,gdp adjusted for inflation,-0.1
+2026-Q4,unemployment rate,6.49
+2026-Q4,financial liabilities,17344361.0
+2026-Q4,savings rate,5.74
+2027-Q1,consumer credit,4198947.0
+2027-Q1,business confidence,112.43
+2027-Q1,gdp adjusted for inflation,-0.09
+2027-Q1,unemployment rate,4.44
+2027-Q1,financial liabilities,17410036.0
+2027-Q1,savings rate,5.89
+2027-Q2,consumer credit,4231850.0
+2027-Q2,business confidence,92.9
+2027-Q2,gdp adjusted for inflation,-0.8
+2027-Q2,unemployment rate,5.13
+2027-Q2,financial liabilities,17475476.0
+2027-Q2,savings rate,10.76
+2027-Q3,consumer credit,4292102.0
+2027-Q3,business confidence,89.01
+2027-Q3,gdp adjusted for inflation,2.09
+2027-Q3,unemployment rate,6.22
+2027-Q3,financial liabilities,17592347.0
+2027-Q3,savings rate,9.98
+2027-Q4,consumer credit,4346686.0
+2027-Q4,business confidence,92.65
+2027-Q4,gdp adjusted for inflation,0.63
+2027-Q4,unemployment rate,4.44
+2027-Q4,financial liabilities,17706451.0
+2027-Q4,savings rate,10.46
+2028-Q1,consumer credit,4382861.0
+2028-Q1,business confidence,110.28
+2028-Q1,gdp adjusted for inflation,0.14
+2028-Q1,unemployment rate,4.96
+2028-Q1,financial liabilities,17795255.0
+2028-Q1,savings rate,6.13
+2028-Q2,consumer credit,4441200.0
+2028-Q2,business confidence,93.87
+2028-Q2,gdp adjusted for inflation,-0.74
+2028-Q2,unemployment rate,3.91
+2028-Q2,financial liabilities,17915234.0
+2028-Q2,savings rate,5.12
+2028-Q3,consumer credit,4495945.0
+2028-Q3,business confidence,86.84
+2028-Q3,gdp adjusted for inflation,2.3
+2028-Q3,unemployment rate,5.37
+2028-Q3,financial liabilities,18011927.0
+2028-Q3,savings rate,5.4
+2028-Q4,consumer credit,4535412.0
+2028-Q4,business confidence,113.32
+2028-Q4,gdp adjusted for inflation,-0.87
+2028-Q4,unemployment rate,5.98
+2028-Q4,financial liabilities,18118118.0
+2028-Q4,savings rate,7.99
