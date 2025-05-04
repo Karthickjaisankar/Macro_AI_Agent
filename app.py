@@ -1,4 +1,4 @@
-# app.py (Combined CSV Analysis + Gemini LLM)
+# app.py (Impact Analysis + Gemini LLM)
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -6,36 +6,44 @@ import random
 import re
 import nltk
 import os
+import io
 
 # Import analysis libraries
 import matplotlib.pyplot as plt
 import seaborn as sns
 import statsmodels.api as sm
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr # Keep for potential use in impact analysis display
 
 # --- 1. Set Page Config FIRST ---
-st.set_page_config(page_title="Analytical Chatbot", page_icon="🧠")
+st.set_page_config(page_title="Analytical Chatbot+", page_icon="🔬")
 
 # --- 2. Gemini LLM Setup ---
+# This section is explicitly kept as requested
 try:
     import google.generativeai as genai
     GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
     if not GEMINI_API_KEY:
-        try: GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-        except: pass # Keep going if not found, will show warning later
-
-    if GEMINI_API_KEY:
+        try:
+            GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+            if not GEMINI_API_KEY: raise KeyError # Trigger exception if secret exists but is empty
+        except:
+            st.warning("GEMINI_API_KEY not found. LLM features (explanation, fallback) disabled.", icon="⚠️")
+            genai_configured = False
+            gemini_model = None
+        else: # Key found in secrets
+             genai.configure(api_key=GEMINI_API_KEY)
+             gemini_model = genai.GenerativeModel('gemini-1.5-flash-latest')
+             genai_configured = True
+    else: # Key found in environment variables
         genai.configure(api_key=GEMINI_API_KEY)
         gemini_model = genai.GenerativeModel('gemini-1.5-flash-latest')
         genai_configured = True
-        # st.toast("Gemini LLM Initialized.", icon="✅") # Optional confirmation
-    else:
-        st.warning("GEMINI_API_KEY not found. LLM features (explanation, fallback) will be disabled.", icon="⚠️")
-        genai_configured = False
-        gemini_model = None
+
+    if genai_configured:
+        st.toast("Gemini LLM Initialized.", icon="✅") # Optional confirmation on load
 
 except ImportError:
-    st.warning("Google Generative AI library not found. LLM features disabled. Install with: pip install google-generativeai", icon="⚠️")
+    st.warning("Google Generative AI library not found. LLM features disabled.", icon="⚠️")
     genai_configured = False
     gemini_model = None
 except Exception as e:
@@ -44,15 +52,15 @@ except Exception as e:
     gemini_model = None
 # --- End Gemini Setup ---
 
-# --- 3. Define Functions (Checks, Loading, Preparation, Analysis, Gemini) ---
+
+# --- 3. Define Functions ---
 
 # NLTK Check Function
 def check_nltk_resources():
     messages = []
     try: nltk.data.find('tokenizers/punkt')
     except nltk.downloader.DownloadError: messages.append("Downloading NLTK 'punkt'..."); nltk.download('punkt', quiet=True)
-    try: nltk.data.find('corpora/stopwords')
-    except nltk.downloader.DownloadError: messages.append("Downloading NLTK 'stopwords'..."); nltk.download('stopwords', quiet=True)
+    # Add other checks if needed
     return messages
 
 # Load Data Function
@@ -62,36 +70,35 @@ def load_data():
         churn_df = pd.read_csv('Invol_churn_channel_wise_actuals_and_forecast.csv')
         macro_df = pd.read_csv('macroeconomic_data.csv')
         if churn_df.empty or macro_df.empty: return None, None, "Error: CSV files are empty."
-        # Basic validation: check expected columns exist
+        # Basic validation
         expected_churn_cols = ['Date', 'Sales Channel', 'Customer Tenure', 'Invol_Churn_Value']
         expected_macro_cols = ['Date', 'Macroeconomic Indicator Name', 'Value']
-        if not all(col in churn_df.columns for col in expected_churn_cols): return None, None, f"Churn CSV missing expected columns ({expected_churn_cols})."
-        if not all(col in macro_df.columns for col in expected_macro_cols): return None, None, f"Macro CSV missing expected columns ({expected_macro_cols})."
+        if not all(col in churn_df.columns for col in expected_churn_cols): return None, None, f"Churn CSV missing columns."
+        if not all(col in macro_df.columns for col in expected_macro_cols): return None, None, f"Macro CSV missing columns."
         return churn_df, macro_df, None
-    except FileNotFoundError: return None, None, "Error: Ensure CSV files are present."
-    except pd.errors.EmptyDataError: return None, None, "Error: One or both CSV files are empty/invalid."
     except Exception as e: return None, None, f"Error loading data: {e}"
 
-# Data Preparation Function
+# Channel-Level Data Preparation Function (Still needed for impact analysis)
 @st.cache_data
-def prepare_analysis_data(churn_df, macro_df):
+def prepare_channel_analysis_data(churn_df, macro_df):
+    """Aggregates churn per channel, pivots macro data, and merges."""
+    if churn_df is None or macro_df is None: return None, "Source data not loaded."
     try:
-        churn_agg = churn_df.groupby('Date')['Invol_Churn_Value'].sum().reset_index()
-        churn_agg = churn_agg.rename(columns={'Invol_Churn_Value': 'Total_Churn'})
+        churn_agg = churn_df.groupby(['Date', 'Sales Channel'])['Invol_Churn_Value'].sum().reset_index()
+        churn_pivot = churn_agg.pivot_table(index='Date', columns='Sales Channel', values='Invol_Churn_Value').reset_index()
+        churn_pivot.columns = ['Date'] + ['Churn_' + col for col in churn_pivot.columns[1:]]
         macro_pivot = macro_df.pivot_table(index='Date', columns='Macroeconomic Indicator Name', values='Value').reset_index()
-        analysis_df = pd.merge(churn_agg, macro_pivot, on='Date', how='inner')
-        # Convert Date to string to ensure consistent type after potential pivoting/merging
+        analysis_df = pd.merge(churn_pivot, macro_pivot, on='Date', how='inner')
         analysis_df['Date'] = analysis_df['Date'].astype(str)
+        analysis_df = analysis_df.ffill().bfill() # Handle NaNs
+        if analysis_df.isnull().any().any(): return None, "Warning: Missing values remain after fill."
         if analysis_df.empty: return None, "Error: No common dates after merging."
-        # Handle potential NaNs created during pivot/merge if necessary (e.g., ffill or check model handling)
-        # analysis_df = analysis_df.ffill().bfill() # Example: fill NaNs
         return analysis_df, None
-    except Exception as e: return None, f"Error preparing data for analysis: {e}"
+    except Exception as e: return None, f"Error preparing channel analysis data: {e}"
 
-# --- Analysis Functions (calculate_correlation, plot_trend, analyze_impact, format_value) ---
-# Keep these functions as defined in the previous (CSV Analysis) step.
-# Make sure they accept the analysis_df and necessary parameters.
-# Example stubs (replace with full functions from previous answer):
+# --- Analysis Functions (format_value, plot_trend, analyze_impact) ---
+# Keep these functions exactly as defined in the previous answer (app_py_v_advanced_analysis)
+# They are needed for the interactive impact analysis section.
 def format_value(value, indicator_name=None):
     # ... (full implementation) ...
     if pd.isna(value): return "N/A"
@@ -99,25 +106,6 @@ def format_value(value, indicator_name=None):
     if abs(value) >= 1_000_000: return f"{value:,.0f}"
     if abs(value) >= 1_000: return f"{value:,.0f}"
     return f"{value:.1f}"
-
-def calculate_correlation(df, target_var='Total_Churn', indicators=None, date_range=None):
-    # ... (full implementation) ...
-    if df is None or target_var not in df.columns: return None, f"Target variable '{target_var}' not found."
-    df_filtered = df.copy()
-    if date_range and len(date_range) == 2:
-         try: df_filtered = df_filtered[(df_filtered['Date'] >= date_range[0]) & (df_filtered['Date'] <= date_range[1])]
-         except Exception as e: return None, f"Error applying date range: {e}"
-    if df_filtered.empty or len(df_filtered) < 2: return None, "Not enough data in range for correlation."
-    if not indicators: indicators = df_filtered.select_dtypes(include=np.number).columns.tolist(); indicators.remove(target_var)
-    valid_indicators = [ind for ind in indicators if ind in df_filtered.columns]; cols_to_correlate = [target_var] + valid_indicators
-    if not valid_indicators: return None, "Specified indicators not found."
-    try:
-        correlation_matrix = df_filtered[cols_to_correlate].corr(method='pearson')
-        if correlation_matrix.empty or target_var not in correlation_matrix: return None, "Could not calculate correlations."
-        target_correlations = correlation_matrix[target_var].drop(target_var)
-        return target_correlations.sort_values(ascending=False), None
-    except Exception as e: return None, f"Error calculating correlation: {e}"
-
 
 def plot_trend(df, column_names, date_range=None, title="Trend Analysis"):
     # ... (full implementation) ...
@@ -132,269 +120,196 @@ def plot_trend(df, column_names, date_range=None, title="Trend Analysis"):
     ax.set_title(title); ax.set_xlabel("Quarter"); ax.set_ylabel("Value"); plt.xticks(rotation=45); ax.legend(); plt.tight_layout()
     return fig, None
 
-
-def analyze_impact(df, target_var='Total_Churn', predictor_vars=None, date_range=None):
-     # ... (full implementation) ...
+def analyze_impact(df, target_var, predictor_vars, date_range=None):
+     # ... (full implementation using statsmodels) ...
     if df is None or target_var not in df.columns: return None, f"Target '{target_var}' not found."
     df_filtered = df.copy()
     if date_range and len(date_range) == 2: df_filtered = df_filtered[(df_filtered['Date'] >= date_range[0]) & (df_filtered['Date'] <= date_range[1])]
     if df_filtered.empty or len(df_filtered) < 5: return None, "Not enough data in range."
-    if not predictor_vars: predictor_vars = df_filtered.select_dtypes(include=np.number).columns.tolist(); predictor_vars.remove(target_var)
+    if not predictor_vars: return None, "No predictors specified."
     valid_predictors = [p for p in predictor_vars if p in df_filtered.columns]
     if not valid_predictors: return None, "Specified predictors not found."
-    cols_for_model = [target_var] + valid_predictors; df_model_data = df_filtered[cols_for_model].dropna()
-    if len(df_model_data) < len(valid_predictors) + 2: return None, "Not enough valid data points after handling missing values."
+    cols_for_model = [target_var] + valid_predictors
+    for col in cols_for_model: df_filtered[col] = pd.to_numeric(df_filtered[col], errors='coerce')
+    df_model_data = df_filtered[cols_for_model].dropna()
+    if len(df_model_data) < len(valid_predictors) + 2: return None, "Not enough valid data points."
     Y = df_model_data[target_var]; X = df_model_data[valid_predictors]; X = sm.add_constant(X)
     try: model = sm.OLS(Y, X).fit(); return model.summary(), None
     except Exception as e: return None, f"Regression error: {e}"
 
-# --- Gemini Interaction Function ---
+# --- Gemini Interaction Function (Kept) ---
 def ask_gemini(prompt):
     """Sends a prompt to the configured Gemini model."""
     if not genai_configured or not gemini_model:
         return "My advanced knowledge module (Gemini LLM) is not configured or available."
-    st.info("Asking Gemini...", icon="🧠")
+    # st.info("Asking Gemini...", icon="🧠") # Optional: Can be noisy
     try:
         response = gemini_model.generate_content(prompt)
         if response.parts: return response.text
         else: st.warning(f"Gemini response issue: {response.prompt_feedback}", icon="⚠️"); return "I received an unusual response from my advanced module."
-    except Exception as e: st.error(f"Error calling Gemini API: {e}", icon="🚨"); return "Sorry, I encountered an error connecting to my advanced knowledge module."
+    except Exception as e: st.error(f"Error calling Gemini API: {e}", icon="🚨"); return "Sorry, error connecting to advanced knowledge module."
 
-# --- Parsing Function (with inflation mapping) ---
-def parse_query_v3(text, macro_indicators_list, all_analysis_cols):
-    """Enhanced parser for analysis, lookup, explain intents + inflation mapping."""
+# --- Parsing Function (Identify 'impact' or 'explain' or fallback) ---
+def parse_intent_v2(text):
+    """Detects primary intent: impact, explain, or unknown."""
     text_lower = text.lower()
-    params = {'intent': 'unknown', 'clarification': None}
+    if 'impact' in text_lower or 'affect' in text_lower or 'influence' in text_lower:
+        return 'impact'
+    if 'explain' in text_lower or 'tell me more' in text_lower or 'what is' in text_lower or 'define' in text_lower:
+        return 'explain'
+    # Could add 'trend', 'correlation' if direct parsing is desired later
+    return 'unknown' # Default for Gemini fallback or simple lookup (if added)
 
-    # Date Range Parsing (same as before)
-    # ... (keep date parsing logic) ...
-    date_matches = re.findall(r'(?:(q[1-4])[ -]?)?(\d{4})', text_lower)
-    dates = []
-    for q, y in date_matches:
-        if q: dates.append(f"{y}-{q.upper()}")
-        else: dates.extend([f"{y}-Q1", f"{y}-Q2", f"{y}-Q3", f"{y}-Q4"])
-    if 'between' in text_lower and len(dates) >= 2: params['date_range'] = sorted(list(set(dates)))[:2]
-    elif 'from' in text_lower and 'to' in text_lower and len(dates) >= 2: params['date_range'] = sorted(list(set(dates)))[:2]
-    elif len(dates) == 1: params['date_range'] = [dates[0], dates[0]]
+# --- Detailed Impact Analysis Function (Called by Form) ---
+def perform_detailed_impact_analysis(df, target_churn_col, indicators, start_q, end_q):
+    """Performs correlation and regression for selected inputs."""
+    results = {}
+    errors = []
+    date_range = [start_q, end_q]
 
+    # 1. Calculate Correlations (using Pearson for simplicity here, can add Spearman)
+    if target_churn_col not in df.columns:
+        errors.append(f"Target churn column '{target_churn_col}' not found.")
+    else:
+        # Use only numeric columns for correlation
+        numeric_cols = [target_churn_col] + indicators
+        df_numeric = df[numeric_cols].apply(pd.to_numeric, errors='coerce').dropna()
 
-    # --- Intent Detection (Add 'explain') ---
-    if 'correlation' in text_lower or 'correlate' in text_lower: params['intent'] = 'correlation'
-    elif 'trend' in text_lower or 'show me' in text_lower: params['intent'] = 'trend'
-    elif 'impact' in text_lower or 'affect' in text_lower or 'effect' in text_lower or 'influence' in text_lower: params['intent'] = 'impact'
-    elif 'explain' in text_lower or 'tell me more' in text_lower or 'what is' in text_lower or 'define' in text_lower: params['intent'] = 'explain' # Gemini target
-    elif 'latest' in text_lower: params['intent'] = 'latest_value'
-    else: params['intent'] = 'lookup' # Default if specific keywords missing
-
-
-    # --- Entity/Variable Extraction (including inflation mapping) ---
-    params['target_variable'] = 'Total_Churn'
-    predictors = []
-    columns_to_plot = []
-    explain_subject = None # What to explain?
-    found_specific_macro = False
-
-    if 'churn' in text_lower:
-         params['type'] = params.get('type', 'churn')
-         if params['intent'] == 'trend': columns_to_plot.append('Total_Churn')
-         if params['intent'] == 'explain': explain_subject = 'Total Churn'
-
-    macro_indicators_lower = {m.lower(): m for m in macro_indicators_list} if macro_indicators_list else {}
-    for indicator_lower in sorted(macro_indicators_lower.keys(), key=len, reverse=True):
-        if indicator_lower in text_lower:
-             params['type'] = 'macro'
-             indicator_original = macro_indicators_lower[indicator_lower]
-             predictors.append(indicator_original)
-             if params['intent'] == 'trend': columns_to_plot.append(indicator_original)
-             if params['intent'] == 'lookup': params['lookup_indicator'] = indicator_original
-             if params['intent'] == 'explain': explain_subject = indicator_original # Prioritize specific indicator for explain
-             found_specific_macro = True
-
-    if not found_specific_macro and 'inflation' in text_lower:
-        proxy_indicator = "gdp adjusted for inflation"
-        if proxy_indicator in macro_indicators_lower.values():
-            params['type'] = 'macro'
-            predictors.append(proxy_indicator)
-            if params['intent'] == 'trend': columns_to_plot.append(proxy_indicator)
-            if params['intent'] == 'lookup': params['lookup_indicator'] = proxy_indicator
-            if params['intent'] == 'explain': explain_subject = proxy_indicator # Explain the proxy
-            params['clarification'] = f"(Note: Using '{proxy_indicator}' as proxy for 'inflation'.)"
-            found_specific_macro = True
-
-    # If intent is explain but no subject identified, maybe explain the whole topic?
-    if params['intent'] == 'explain' and not explain_subject:
-         if 'data' in text_lower or 'analysis' in text_lower: explain_subject = 'the available data analysis'
-         else: explain_subject = text # Fallback to explaining the raw text? Or ask for clarification? Let's assume fallback needed.
-
-    params['predictors'] = list(set(predictors))
-    params['plot_columns'] = list(set(columns_to_plot))
-    params['explain_subject'] = explain_subject
-
-    # Handle 'latest' intent processing
-    if params['intent'] == 'latest_value':
-         params['intent'] = 'lookup'; params['latest'] = True
-         if not params.get('lookup_indicator'):
-              if 'churn' in text_lower: params['lookup_indicator'] = 'Total_Churn'
-              elif params.get('type') == 'macro': params['intent'] = 'clarify_indicator'
-
-    if params['intent'] == 'trend' and not params['plot_columns']: params['plot_columns'] = [params['target_variable']]
-
-    return params
-
-# --- Combined Bot Response Function ---
-def get_bot_response_v3(user_input, analysis_df, macro_names):
-    """Orchestrates CSV analysis and Gemini LLM calls."""
-    if analysis_df is None: return "Sorry, the analysis data isn't available."
-
-    all_analysis_cols = analysis_df.columns.tolist() if analysis_df is not None else []
-    params = parse_query_v3(user_input, macro_names, all_analysis_cols)
-    intent = params.get('intent')
-    date_range = params.get('date_range')
-    target_var = params.get('target_variable', 'Total_Churn')
-    predictors = params.get('predictors')
-    plot_columns = params.get('plot_columns')
-    lookup_indicator = params.get('lookup_indicator')
-    fetch_latest = params.get('latest', False)
-    explain_subject = params.get('explain_subject')
-    clarification = params.get('clarification')
-
-    disclaimer = "\n\n*(Note: Analysis uses dummy data. Correlation/association doesn't imply causation.)*"
-    response = None
-    figure = None # To hold potential plot object
-
-    # --- Handle Specific Intents ---
-    if intent == 'correlation':
-        st.info("Calculating correlations...", icon="🔗")
-        target_correlations, error = calculate_correlation(analysis_df, target_var, predictors, date_range)
-        if error: response = error
-        elif target_correlations is not None and not target_correlations.empty:
-            response_text = f"**Correlation with {target_var}**"
-            if date_range: response_text += f" ({date_range[0]} to {date_range[1]})"
-            response_text += ":\n" + "\n".join([f"- {idx}: {val:.2f}" for idx, val in target_correlations.items()])
-            response = response_text + disclaimer
-        else: response = "Could not calculate correlations."
-
-    elif intent == 'trend':
-         if not plot_columns: response = "Please specify what trend to show."
-         else:
-              st.info(f"Generating trend plot...", icon="📈")
-              fig, error = plot_trend(analysis_df, plot_columns, date_range, title=f"Trend for {', '.join(plot_columns)}")
-              if error: response = error
-              elif fig:
-                  figure = fig # Store figure to display later
-                  response = f"Here's the trend plot for {', '.join(plot_columns)}." + disclaimer
-              else: response = "Could not generate trend plot."
-
-    elif intent == 'impact':
-         if not predictors: response = "Please specify which indicator(s) to analyze the impact of."
-         else:
-              st.info(f"Analyzing impact of {', '.join(predictors)} on {target_var}...", icon="🔬")
-              summary, error = analyze_impact(analysis_df, target_var, predictors, date_range)
-              if error: response = error
-              elif summary:
-                  response_text = f"**Simple Impact Analysis Results (Regression)**\n"
-                  if date_range: response_text += f"*Period: {date_range[0]} to {date_range[1]}*\n"
-                  st.text(summary) # Display full summary table
-                  response = response_text + f"See regression summary above for details." + disclaimer
-              else: response = "Could not perform impact analysis."
-
-    elif intent == 'lookup':
-         lookup_target = lookup_indicator or target_var
-         target_date = None
-         if fetch_latest: target_date = analysis_df['Date'].max()
-         elif date_range: target_date = date_range[0]
-
-         if not target_date: response = f"Please specify date or 'latest' for {lookup_target}."
-         elif lookup_target not in analysis_df.columns: response = f"'{lookup_target}' not found."
-         else:
-             try:
-                 value_series = analysis_df.loc[analysis_df['Date'] == target_date, lookup_target]
-                 if value_series.empty: response = f"No data found for {lookup_target} in {target_date}."
-                 else:
-                     value = value_series.iloc[0]
-                     response = f"The value for **{lookup_target}** in **{target_date}** was: {format_value(value, lookup_target)}"
-             except Exception as e: response = f"Error retrieving lookup value: {e}"
-
-    elif intent == 'explain':
-         if not explain_subject:
-              # If explain intent but no clear subject, fallback to general Gemini call
-              intent = 'unknown' # Force fallback
-         else:
-              # Prepare context for Gemini explanation
-              context = f"Explain the concept of '{explain_subject}' in a macroeconomic context."
-              # Try to add latest value as context if relevant
-              if explain_subject in analysis_df.columns:
-                  latest_val_explain = analysis_df.loc[analysis_df['Date'] == analysis_df['Date'].max(), explain_subject]
-                  if not latest_val_explain.empty:
-                      latest_val = latest_val_explain.iloc[0]
-                      context += f" The latest value in the dataset ({analysis_df['Date'].max()}) is {format_value(latest_val, explain_subject)}."
-              context += " Keep the explanation concise for a chatbot."
-              response = ask_gemini(context)
+        if len(df_numeric) > 1:
+            correlations = df_numeric.corr(method='pearson')[target_churn_col].drop(target_churn_col)
+            results['correlations'] = correlations.sort_values(ascending=False)
+        else:
+             errors.append("Not enough valid numeric data for correlation.")
 
 
-    elif intent == 'clarify_indicator':
-          response = "Please specify which macroeconomic indicator you want the latest value for."
+    # 2. Perform Regression Analysis
+    summary, impact_error = analyze_impact(df, target_churn_col, indicators, date_range)
+    if impact_error: errors.append(f"Impact Analysis Error: {impact_error}")
+    results['regression_summary'] = summary
 
-    # --- Fallback to Gemini if no specific response generated ---
-    if response is None and intent == 'unknown':
-         st.info("Trying to answer with Gemini...", icon="💡")
-         response = ask_gemini(f"As a macroeconomic chatbot assistant, answer the following user query concisely based on general knowledge or inferring from the request context related to churn and macroeconomics: '{user_input}'")
-         # If Gemini fails, use a standard unknown response
-         if "Sorry, I encountered an error" in response or "module is not configured" in response:
-              response = random.choice("UNKNOWN_RESPONSES")
+    # 3. Generate Trend Plot
+    plot_cols = [target_churn_col] + indicators
+    fig, plot_error = plot_trend(df, plot_cols, date_range, title=f"Trend for {target_churn_col} and Predictors")
+    if plot_error: errors.append(f"Plotting Error: {plot_error}")
+    results['figure'] = fig
 
-    # --- Append clarification if it exists ---
-    if clarification and response and "Sorry" not in response:
-        response += f"\n{clarification}"
-
-    return response, figure # Return response text and potential figure object
-
+    results['errors'] = errors
+    return results
 
 # --- 4. Execute Initial Checks and Load/Prepare Data ---
-# nltk_messages = check_nltk_resources()
+nltk_messages = check_nltk_resources()
 churn_data_raw, macro_data_raw, load_error_message = load_data()
 
 # Display Initial Warnings/Errors (AFTER set_page_config)
-# for msg in nltk_messages: st.toast(msg, icon="ℹ️")
+for msg in nltk_messages: st.toast(msg, icon="ℹ️")
 if load_error_message: st.error(load_error_message, icon="🚨"); st.stop()
 
 # Prepare Data for Analysis
-analysis_data, prep_error_message = prepare_analysis_data(churn_data_raw, macro_data_raw)
+analysis_data, prep_error_message = prepare_channel_analysis_data(churn_data_raw, macro_data_raw)
 if prep_error_message: st.error(prep_error_message, icon="🚨"); st.stop()
 
-macro_indicator_names = macro_data_raw['Macroeconomic Indicator Name'].unique().tolist() if macro_data_raw is not None else []
+# Extract available columns for widgets
+churn_channels = [col.replace('Churn_', '') for col in analysis_data.columns if col.startswith('Churn_')]
+macro_indicators_list = [col for col in analysis_data.columns if not col.startswith('Churn_') and col != 'Date']
+available_quarters = sorted(analysis_data['Date'].unique())
 
-# --- 5. Setup UI ---
-st.title("🧠 Analytical Chatbot")
-st.caption("Ask for trends, correlations, impact, definitions, or latest values.")
 
-# Initialize/Display chat history
+# --- 5. Initialize Session State ---
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Hello! How can I analyze the data or provide explanations today?"}]
+    st.session_state.messages = [{"role": "assistant", "content": "Hello! Ask me to explain concepts, or analyze the impact of macro indicators on channel churn."}]
+if "analysis_requested" not in st.session_state:
+    st.session_state.analysis_requested = False
+if "analysis_results" not in st.session_state:
+    st.session_state.analysis_results = None
 
+# --- 6. Setup UI ---
+st.title("🔬 Analytical Chatbot + LLM")
+st.caption("Analyze churn impacts using CSV data or ask general/explanation questions.")
+
+# --- Main Chat Interface ---
+# Display chat messages
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        # Display plots stored in messages if they exist (modification needed if storing plots)
-        # For now, plots are displayed directly when generated
         st.markdown(message["content"])
 
-# --- 6. Handle User Input ---
-if prompt := st.chat_input("Ask your analysis question..."):
+# --- Impact Analysis Widget Section ---
+if st.session_state.analysis_requested:
+    st.markdown("---")
+    st.subheader("Impact Analysis Configuration")
+    with st.form("impact_analysis_form"):
+        selected_target_channel = st.selectbox("Target Churn Channel:", options=churn_channels, key="target_channel_select")
+        selected_indicators = st.multiselect("Predictor Macro Indicator(s):", options=macro_indicators_list, key="indicators_multi_select")
+        col1, col2 = st.columns(2)
+        with col1: selected_start_q = st.selectbox("Start Quarter:", options=available_quarters, index=0, key="start_q_select")
+        with col2: selected_end_q = st.selectbox("End Quarter:", options=available_quarters, index=len(available_quarters)-1, key="end_q_select")
+        submitted = st.form_submit_button("Run Impact Analysis")
+
+        if submitted:
+            if not selected_indicators: st.warning("Please select at least one macro indicator.")
+            elif selected_start_q > selected_end_q: st.warning("Start Quarter cannot be after End Quarter.")
+            else:
+                with st.spinner("Performing detailed analysis..."):
+                    target_churn_col = f"Churn_{selected_target_channel}"
+                    analysis_results = perform_detailed_impact_analysis(analysis_data, target_churn_col, selected_indicators, selected_start_q, selected_end_q)
+                    st.session_state.analysis_results = analysis_results
+                    st.session_state.analysis_requested = False # Hide widgets after running
+                    st.rerun()
+
+# --- Display Analysis Results ---
+if st.session_state.analysis_results:
+    st.markdown("---")
+    st.subheader("Impact Analysis Results")
+    results = st.session_state.analysis_results
+    if results.get('errors'):
+        for error in results['errors']: st.error(error, icon="🚨")
+    if 'correlations' in results and results['correlations'] is not None:
+        st.markdown("**Correlations with Target:**")
+        st.dataframe(results['correlations'].apply(lambda x: f"{x:.2f}"))
+    if 'regression_summary' in results and results['regression_summary'] is not None:
+        st.markdown("**Regression Summary:**")
+        st.text(results['regression_summary'])
+    if 'figure' in results and results['figure'] is not None:
+        st.markdown("**Trend Plot:**")
+        st.pyplot(results['figure'])
+    st.markdown("*(Note: Analysis uses dummy data. Correlation/association doesn't imply causation.)*")
+    # Clear results after displaying to prevent showing again on next interaction
+    st.session_state.analysis_results = None
+
+
+# --- Handle User Input ---
+if prompt := st.chat_input("Ask about impact, explain concepts, or general questions..."):
+    # Add user message
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Get bot response (which might include displaying plots/summaries)
-    with st.spinner("Thinking..."):
-        bot_reply_text, generated_figure = get_bot_response_v3(prompt, analysis_data, macro_indicator_names)
+    # Basic intent parsing
+    intent = parse_intent_v2(prompt)
+    bot_reply_content = None
+    st.session_state.analysis_results = None # Clear previous analysis results
 
-    # Display bot's response text
-    with st.chat_message("assistant"):
-        st.markdown(bot_reply_text)
-        # Display the figure if one was generated by plot_trend
-        # Note: Impact analysis summary (st.text) is displayed directly inside get_bot_response_v3
-        if generated_figure:
-             st.pyplot(generated_figure)
+    if intent == 'impact':
+        # Set flag to show widgets, provide instructions
+        st.session_state.analysis_requested = True
+        bot_reply_content = "Okay, please use the widgets below to configure the impact analysis."
+        st.rerun() # Rerun to show widgets immediately
 
-    # Add text response to history (figure is not easily serializable for session state)
-    st.session_state.messages.append({"role": "assistant", "content": bot_reply_text})
+    elif intent == 'explain':
+        # Use Gemini for explanations
+        with st.spinner("Thinking..."):
+            # Simple prompt for explanation
+            gemini_prompt = f"Explain the following concept in the context of business/economics: '{prompt}'. Keep it concise for a chatbot."
+            bot_reply_content = ask_gemini(gemini_prompt)
+
+    else: # Fallback to Gemini for unknown intents or general questions
+        with st.spinner("Thinking..."):
+            # General purpose prompt
+            gemini_prompt = f"As an analytical chatbot assistant, answer the following user query: '{prompt}'"
+            bot_reply_content = ask_gemini(gemini_prompt)
+
+    # Add assistant response to history and display (only if not rerunning for widgets)
+    if bot_reply_content:
+        st.session_state.messages.append({"role": "assistant", "content": bot_reply_content})
+        with st.chat_message("assistant"):
+             st.markdown(bot_reply_content)
+
