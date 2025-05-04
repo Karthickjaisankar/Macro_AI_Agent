@@ -1,4 +1,4 @@
-# app.py (Persistent Filters + Context + Gemini LLM + Scaling - V2)
+# app.py (Persistent Filters + Context + Gemini LLM + Scaling - V3)
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -143,12 +143,12 @@ def analyze_impact(df, target_var, predictor_vars, date_range=None):
     except Exception as e: return None, f"Regression error: {e}"
 
 
-# --- Gemini Interaction Function ---
-def ask_gemini(prompt, context=None, force_general=False):
+# --- MODIFIED: Gemini Interaction Function ---
+def ask_gemini(prompt, context=None, intent='unknown'):
     """
     Sends a prompt to Gemini.
-    Uses context if provided AND force_general is False.
-    If force_general is True, ignores context and asks general knowledge question.
+    Prepends context as background if available for 'explain' or 'unknown' intents.
+    Uses context exclusively for 'summarize' intent.
     """
     if not genai_configured or not gemini_model:
         if 'gemini_warning_shown' not in st.session_state:
@@ -156,19 +156,28 @@ def ask_gemini(prompt, context=None, force_general=False):
             st.session_state.gemini_warning_shown = True
         return "My advanced knowledge module (LLM) is not available."
 
-    # Decide which prompt structure to use
-    if context and not force_general:
-        # Use context-constrained prompt
-        full_prompt = f"""Here is the summary of a previous data analysis:
+    # Construct the prompt based on intent and context availability
+    if context and intent == 'summarize':
+         # Specific instruction for summarization - ONLY use context
+         full_prompt = f"""Here is the summary of a previous data analysis:
 <analysis_summary>
 {context}
 </analysis_summary>
 
-Based *only* on the information in the analysis summary above, answer the following user query concisely: "{prompt}"
+Based *only* on the analysis summary provided above, summarize the key findings concisely for the user."""
 
-If the query cannot be answered from the summary, state that the information is not available in the summary. Do not use external knowledge unless the query explicitly asks for it or is unrelated to the summary."""
+    elif context and (intent == 'explain' or intent == 'unknown'):
+         # Provide context as background, but allow general knowledge
+         full_prompt = f"""You can use the following summary of a previous data analysis as background context if relevant, but prioritize answering the user's main query using your general knowledge if the query is not directly about the analysis details:
+<analysis_summary>
+{context}
+</analysis_summary>
+
+User Query: "{prompt}"
+Answer concisely as an analytical chatbot assistant."""
+
     else:
-        # Use general-purpose prompt (ignores context even if passed)
+        # No context or intent doesn't use context in a special way
         full_prompt = f"As an analytical chatbot assistant, answer the following user query concisely: '{prompt}'"
 
     # st.info("Asking Gemini...", icon="🧠") # Optional
@@ -183,40 +192,15 @@ If the query cannot be answered from the summary, state that the information is 
 def parse_chat_intent(text):
     # ... (Keep existing implementation) ...
     text_lower = text.lower()
-    if 'impact' in text_lower or 'affect' in text_lower or 'influence' in text_lower: return 'impact' # Although handled by form, useful for context check
-    if 'explain' in text_lower or 'tell me more' in text_lower or 'what is' in text_lower or 'define' in text_lower: return 'explain'
-    if 'summarize' in text_lower or 'summary' in text_lower: return 'summarize'
+    # Removed 'impact' as it's handled by the form
+    if 'explain' in text_lower or 'tell me more' in text_lower or 'what is' in text_lower or 'define' in text_lower:
+        return 'explain'
+    if 'summarize' in text_lower or 'summary' in text_lower:
+        return 'summarize'
     return 'unknown'
 
-# --- NEW: Helper to check if prompt is related to analysis context ---
-def is_follow_up(prompt, context):
-    """Simple check if the prompt seems related to the analysis context."""
-    if not context: return False
-    prompt_lower = prompt.lower()
-    context_lower = context.lower()
-    # Keywords indicating follow-up
-    follow_up_keywords = ["result", "analysis", "summary", "coefficient", "correlation", "trend", "impact", "significant", "r-squared", "plot", "chart", "graph"]
-    if any(keyword in prompt_lower for keyword in follow_up_keywords):
-        return True
-    # Check if prompt mentions variables present in the context summary
-    # (This requires parsing variable names from context - can be complex, simple check for now)
-    # Example: Check if predictor names from context are in prompt
-    try:
-        lines = context_lower.split('\n')
-        for line in lines:
-            if line.strip().startswith("- significant predictors"):
-                predictors_str = line.split(":")[-1]
-                predictors = [p.strip() for p in predictors_str.split(',')]
-                if any(p in prompt_lower for p in predictors if p):
-                    return True
-            if line.strip().startswith("- strongest"): # Check correlation terms
-                indicator = line.split(':')[1].split('(')[0].strip()
-                if indicator in prompt_lower:
-                    return True
-    except Exception:
-        pass # Ignore errors during this simple check
-
-    return False # Assume not a follow-up if keywords/variables aren't found
+# --- Remove is_follow_up function ---
+# We no longer need the is_follow_up helper function
 
 
 # --- Detailed Impact Analysis Function (Called by Form) ---
@@ -355,34 +339,19 @@ if prompt := st.chat_input("Ask follow-up questions about the analysis or genera
 
     intent = parse_chat_intent(prompt)
     bot_reply_content = None
+    # Retrieve context from the latest analysis run (if any)
     analysis_context = st.session_state.analysis_results.get('text_summary') if st.session_state.analysis_results else None
+
+    # Clear previous analysis results display area if a new chat message comes in
+    # The context variable still holds the info for this turn if needed
+    if st.session_state.analysis_results:
+         st.session_state.analysis_results = None
+         # Don't rerun here, wait until after bot response is generated
 
     # --- Generate Bot Response ---
     with st.spinner("Thinking..."):
-        # Determine if the LLM should use context or general knowledge
-        force_general_mode = False
-        if analysis_context:
-            # If context exists, check if the prompt is a follow-up
-            if not is_follow_up(prompt, analysis_context):
-                # If it's NOT a follow-up, force general mode
-                force_general_mode = True
-
-        # Handle intents
-        if intent == 'explain':
-            gemini_prompt = f"Explain the following concept in the context of business/economics: '{prompt}'. Keep it concise for a chatbot."
-            bot_reply_content = ask_gemini(gemini_prompt, context=analysis_context, force_general=force_general_mode)
-
-        elif intent == 'summarize':
-             if analysis_context:
-                   gemini_prompt = "Summarize the key findings from the previous analysis."
-                   # Always use context for summarization request
-                   bot_reply_content = ask_gemini(gemini_prompt, context=analysis_context, force_general=False)
-             else:
-                  bot_reply_content = "No analysis results are currently available to summarize. Please run an impact analysis using the filters above first."
-
-        else: # Fallback for 'unknown' intent
-            gemini_prompt = f"As an analytical chatbot assistant, answer the following user query: '{prompt}'"
-            bot_reply_content = ask_gemini(gemini_prompt, context=analysis_context, force_general=force_general_mode)
+        # Pass the intent to ask_gemini to help it decide how to use context
+        bot_reply_content = ask_gemini(prompt, context=analysis_context, intent=intent)
 
     # Add assistant response to chat history
     if bot_reply_content:
