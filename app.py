@@ -1,4 +1,4 @@
-# app.py (Persistent Filters + Context + Gemini LLM + Scaling - V3)
+# app.py (Persistent Filters + Detailed Context + Gemini LLM + Scaling - V4)
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -143,44 +143,35 @@ def analyze_impact(df, target_var, predictor_vars, date_range=None):
     except Exception as e: return None, f"Regression error: {e}"
 
 
-# --- MODIFIED: Gemini Interaction Function ---
+# --- Gemini Interaction Function ---
 def ask_gemini(prompt, context=None, intent='unknown'):
     """
     Sends a prompt to Gemini.
     Prepends context as background if available for 'explain' or 'unknown' intents.
     Uses context exclusively for 'summarize' intent.
     """
+    # ... (Keep existing implementation from V3) ...
     if not genai_configured or not gemini_model:
         if 'gemini_warning_shown' not in st.session_state:
             st.warning("GEMINI_API_KEY not found or invalid. LLM features disabled.", icon="⚠️")
             st.session_state.gemini_warning_shown = True
         return "My advanced knowledge module (LLM) is not available."
 
-    # Construct the prompt based on intent and context availability
     if context and intent == 'summarize':
-         # Specific instruction for summarization - ONLY use context
          full_prompt = f"""Here is the summary of a previous data analysis:
 <analysis_summary>
 {context}
 </analysis_summary>
-
 Based *only* on the analysis summary provided above, summarize the key findings concisely for the user."""
-
     elif context and (intent == 'explain' or intent == 'unknown'):
-         # Provide context as background, but allow general knowledge
          full_prompt = f"""You can use the following summary of a previous data analysis as background context if relevant, but prioritize answering the user's main query using your general knowledge if the query is not directly about the analysis details:
 <analysis_summary>
 {context}
 </analysis_summary>
-
 User Query: "{prompt}"
 Answer concisely as an analytical chatbot assistant."""
-
-    else:
-        # No context or intent doesn't use context in a special way
+    else: # No context or intent doesn't use context in a special way
         full_prompt = f"As an analytical chatbot assistant, answer the following user query concisely: '{prompt}'"
-
-    # st.info("Asking Gemini...", icon="🧠") # Optional
     try:
         response = gemini_model.generate_content(full_prompt)
         if response.parts: return response.text
@@ -192,55 +183,84 @@ Answer concisely as an analytical chatbot assistant."""
 def parse_chat_intent(text):
     # ... (Keep existing implementation) ...
     text_lower = text.lower()
-    # Removed 'impact' as it's handled by the form
-    if 'explain' in text_lower or 'tell me more' in text_lower or 'what is' in text_lower or 'define' in text_lower:
-        return 'explain'
-    if 'summarize' in text_lower or 'summary' in text_lower:
-        return 'summarize'
+    if 'explain' in text_lower or 'tell me more' in text_lower or 'what is' in text_lower or 'define' in text_lower: return 'explain'
+    if 'summarize' in text_lower or 'summary' in text_lower: return 'summarize'
     return 'unknown'
 
-# --- Remove is_follow_up function ---
-# We no longer need the is_follow_up helper function
-
-
-# --- Detailed Impact Analysis Function (Called by Form) ---
+# --- MODIFIED: Detailed Impact Analysis Function (More Detailed Summary) ---
 def perform_detailed_impact_analysis(df, target_churn_col, indicators, start_q, end_q):
-    """Performs correlation and regression, returns results including text summary."""
-    # ... (Keep existing implementation that generates 'text_summary') ...
-    results = {'text_summary': f"Analysis Summary for {target_churn_col} ({start_q} to {end_q}):\n"}
+    """Performs correlation and regression, returns results including a more detailed text summary."""
+    results = {'detailed_text_summary': f"**Detailed Analysis Report: {target_churn_col} ({start_q} to {end_q})**\n\n"}
     errors = []
     date_range = [start_q, end_q]
     correlations = None
-    if target_churn_col not in df.columns: errors.append(f"Target churn column '{target_churn_col}' not found.")
+
+    # 1. Correlations
+    results['detailed_text_summary'] += "**Correlation Analysis:**\n"
+    if target_churn_col not in df.columns:
+        errors.append(f"Target churn column '{target_churn_col}' not found.")
+        results['detailed_text_summary'] += "- Target column not found.\n"
     else:
         numeric_cols = [target_churn_col] + indicators
         df_numeric = df[numeric_cols].apply(pd.to_numeric, errors='coerce').dropna()
         if len(df_numeric) > 1:
-            correlations = df_numeric.corr(method='pearson')[target_churn_col].drop(target_churn_col).sort_values(ascending=False)
+            correlations = df_numeric.corr(method='pearson')[target_churn_col].drop(target_churn_col).sort_values(key=abs, ascending=False) # Sort by absolute value
             results['correlations'] = correlations
             if not correlations.empty:
-                top_pos = correlations.head(1); top_neg = correlations.tail(1)
-                results['text_summary'] += f"- Strongest positive correlation: {top_pos.index[0]} ({top_pos.iloc[0]:.2f})\n"
-                results['text_summary'] += f"- Strongest negative correlation: {top_neg.index[0]} ({top_neg.iloc[0]:.2f})\n"
-        else: errors.append("Not enough valid numeric data for correlation.")
+                 results['detailed_text_summary'] += f"Pearson correlation coefficients between '{target_churn_col}' and predictors:\n"
+                 for ind, val in correlations.items():
+                     strength = "Weak"
+                     if abs(val) > 0.7: strength = "Strong"
+                     elif abs(val) > 0.4: strength = "Moderate"
+                     results['detailed_text_summary'] += f"  - {ind}: {val:.3f} ({strength})\n"
+            else:
+                 results['detailed_text_summary'] += "- No valid correlations could be calculated.\n"
+        else:
+             errors.append("Not enough valid numeric data for correlation.")
+             results['detailed_text_summary'] += "- Not enough valid data points for correlation.\n"
+
+    # 2. Regression
+    results['detailed_text_summary'] += "\n**Regression Analysis (Impact Estimation):**\n"
     summary_obj, impact_error = analyze_impact(df, target_churn_col, indicators, date_range)
-    if impact_error: errors.append(f"Impact Analysis Error: {impact_error}")
+    if impact_error:
+        errors.append(f"Impact Analysis Error: {impact_error}")
+        results['detailed_text_summary'] += f"- Error during regression: {impact_error}\n"
     results['regression_summary_obj'] = summary_obj
     if summary_obj:
         try:
-            r_squared = float(summary_obj.tables[0].data[0][3]); adj_r_squared = float(summary_obj.tables[0].data[1][3])
-            results['text_summary'] += f"- Regression Fit: R-squared={r_squared:.3f}, Adj. R-squared={adj_r_squared:.3f}\n"
+            r_squared = float(summary_obj.tables[0].data[0][3])
+            adj_r_squared = float(summary_obj.tables[0].data[1][3])
+            f_prob = float(summary_obj.tables[0].data[3][3]) # Prob (F-statistic)
+            results['detailed_text_summary'] += f"- Model Fit: R-squared={r_squared:.3f}, Adj. R-squared={adj_r_squared:.3f}.\n"
+            results['detailed_text_summary'] += f"- Overall Model Significance (Prob F-statistic): {f_prob:.3f} "
+            results['detailed_text_summary'] += "(Significant if < 0.05)\n" if f_prob < 0.05 else "(Not significant overall at p=0.05)\n"
+
             coeffs_df = pd.read_html(summary_obj.tables[1].as_html(), header=0, index_col=0)[0]
-            significant_predictors = coeffs_df[coeffs_df['P>|t|'] < 0.05].index.tolist()
-            if 'const' in significant_predictors: significant_predictors.remove('const')
-            if significant_predictors: results['text_summary'] += f"- Significant predictors (p<0.05): {', '.join(significant_predictors)}\n"
-            else: results['text_summary'] += "- No predictors found statistically significant (p<0.05).\n"
-        except Exception as e: results['text_summary'] += f"- Could not parse regression summary details: {e}\n"
-    else: results['text_summary'] += "- Regression analysis could not be completed.\n"
+            results['detailed_text_summary'] += "- Predictor Coefficients:\n"
+            significant_predictors = []
+            for predictor, row in coeffs_df.iterrows():
+                if predictor == 'const': continue # Skip intercept
+                coeff = row['coef']
+                p_value = row['P>|t|']
+                significance = "Significant (p<0.05)" if p_value < 0.05 else "Not Significant (p>=0.05)"
+                results['detailed_text_summary'] += f"  - {predictor}: Coefficient={coeff:.3f}, P-value={p_value:.3f} ({significance})\n"
+                if p_value < 0.05:
+                    significant_predictors.append(predictor)
+            if significant_predictors:
+                 results['detailed_text_summary'] += f"- Key Drivers (Significant Predictors): {', '.join(significant_predictors)}\n"
+            else:
+                 results['detailed_text_summary'] += "- No individual predictors were statistically significant at the p=0.05 level.\n"
+        except Exception as e:
+            results['detailed_text_summary'] += f"- Could not parse detailed regression summary: {e}\n"
+    else:
+        results['detailed_text_summary'] += "- Regression analysis could not be completed.\n"
+
+    # 3. Plot
     plot_cols = [target_churn_col] + indicators
     fig, plot_error = plot_trend(df, plot_cols, date_range, title=f"Trend for {target_churn_col} and Predictors")
     if plot_error: errors.append(f"Plotting Error: {plot_error}")
     results['figure'] = fig
+
     results['errors'] = errors
     return results
 
@@ -261,11 +281,14 @@ else: churn_channels, macro_indicators_list, available_quarters = [], [], []
 
 
 # --- 5. Initialize Session State ---
-# ... (Keep this section as is) ...
 if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": "Hello! Use the filters above to run an impact analysis, then ask follow-up questions."}]
+# analysis_results stores the DICT from the last form submission (incl. detailed summary obj)
 if "analysis_results" not in st.session_state:
     st.session_state.analysis_results = None
+# detailed_summary_context stores the TEXT summary from the last 'summarize' request or form submission
+if "detailed_summary_context" not in st.session_state:
+    st.session_state.detailed_summary_context = None
 
 # --- 6. Setup UI ---
 # ... (Keep this section as is) ...
@@ -273,7 +296,7 @@ st.title("🔬 Analytical Chatbot + LLM")
 st.caption("Configure and run impact analysis using the filters below. Then ask follow-up questions about the results.")
 
 # --- Persistent Impact Analysis Configuration Form ---
-# ... (Keep this section as is) ...
+# ... (Keep this section as is, but update the form submission logic) ...
 st.markdown("---")
 st.subheader("Impact Analysis Configuration")
 with st.form("impact_analysis_form"):
@@ -284,6 +307,7 @@ with st.form("impact_analysis_form"):
     with col_start: selected_start_q = st.selectbox("Start Quarter:", options=available_quarters, index=0 if available_quarters else None, key="start_q_select", disabled=not available_quarters)
     with col_end: selected_end_q = st.selectbox("End Quarter:", options=available_quarters, index=len(available_quarters)-1 if available_quarters else None, key="end_q_select", disabled=not available_quarters)
     submitted = st.form_submit_button("📊 Run Impact Analysis", disabled=not analysis_data is not None)
+
     if submitted:
         if not selected_target_channel: st.warning("Please select a target churn channel.")
         elif not selected_indicators: st.warning("Please select at least one macro indicator.")
@@ -292,34 +316,56 @@ with st.form("impact_analysis_form"):
         else:
             with st.spinner("Performing detailed analysis..."):
                 target_churn_col = f"Churn_{selected_target_channel}"
-                st.session_state.analysis_results = perform_detailed_impact_analysis(analysis_data, target_churn_col, selected_indicators, selected_start_q, selected_end_q)
-            st.session_state.messages.append({"role": "assistant", "content": f"Impact analysis complete for {target_churn_col} ({selected_start_q} - {selected_end_q}). Results are displayed below. Feel free to ask follow-up questions."})
-            st.rerun()
+                # Store the entire results dictionary
+                analysis_results_dict = perform_detailed_impact_analysis(
+                    analysis_data, target_churn_col, selected_indicators, selected_start_q, selected_end_q
+                )
+                st.session_state.analysis_results = analysis_results_dict
+                # --- ALSO STORE DETAILED SUMMARY FOR CONTEXT ---
+                st.session_state.detailed_summary_context = analysis_results_dict.get('detailed_text_summary', None)
+
+            # Add confirmation message to chat
+            st.session_state.messages.append({"role": "assistant", "content": f"Impact analysis complete for {target_churn_col} ({selected_start_q} - {selected_end_q}). Results are displayed below. You can ask me to summarize or explain specific parts."})
+            st.rerun() # Rerun to display results and updated chat
 
 # --- Display Analysis Results ---
-# ... (Keep this section as is) ...
+# Display results from the LATEST form submission
 if st.session_state.analysis_results:
     st.markdown("---")
     st.subheader("Latest Impact Analysis Results")
     results = st.session_state.analysis_results
+
+    # Display errors first
     if results.get('errors'):
         for error in results['errors']: st.error(error, icon="🚨")
-    if results.get('text_summary'):
+
+    # Display Detailed Text Summary (Generated by perform_detailed_impact_analysis)
+    if results.get('detailed_text_summary'):
         st.markdown("**Analysis Summary:**")
-        st.markdown(results['text_summary'])
+        st.markdown(results['detailed_text_summary']) # Display the generated detailed summary
+
+    # Use columns for better layout of results
     res_col1, res_col2 = st.columns(2)
+
     with res_col1:
+        # Display Correlations
         if 'correlations' in results and results['correlations'] is not None and not results['correlations'].empty:
             st.markdown("**Correlations with Target:**")
             st.dataframe(results['correlations'].apply(lambda x: f"{x:.2f}"))
+
+        # Display Plot
         if 'figure' in results and results['figure'] is not None:
             st.markdown("**Trend Plot (Scaled):**")
             st.pyplot(results['figure'])
+
     with res_col2:
+        # Display Regression Summary Object
         if 'regression_summary_obj' in results and results['regression_summary_obj'] is not None:
-            st.markdown("**Detailed Regression Summary:**")
-            st.text(results['regression_summary_obj'])
+            st.markdown("**Detailed Regression Stats (Statsmodels):**")
+            st.text(results['regression_summary_obj']) # Display full statsmodels summary
+
     st.markdown("*(Note: Analysis uses dummy data...)*")
+    # Keep analysis_results in state until overwritten by next form submission
 
 
 # --- Chat Interface ---
@@ -329,29 +375,35 @@ st.subheader("Ask Questions")
 # Display chat messages
 container = st.container()
 with container:
-    for message in st.session_state.messages:
+    # Only display the last N messages to prevent the container from growing too large (optional)
+    # display_messages = st.session_state.messages[-10:] # Example: last 10
+    display_messages = st.session_state.messages
+    for message in display_messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-# --- MODIFIED: Handle User Input via chat box ---
+# --- Handle User Input via chat box ---
 if prompt := st.chat_input("Ask follow-up questions about the analysis or general questions..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
 
     intent = parse_chat_intent(prompt)
     bot_reply_content = None
-    # Retrieve context from the latest analysis run (if any)
-    analysis_context = st.session_state.analysis_results.get('text_summary') if st.session_state.analysis_results else None
-
-    # Clear previous analysis results display area if a new chat message comes in
-    # The context variable still holds the info for this turn if needed
-    if st.session_state.analysis_results:
-         st.session_state.analysis_results = None
-         # Don't rerun here, wait until after bot response is generated
+    # --- Use the persistent detailed summary context ---
+    analysis_context = st.session_state.detailed_summary_context
 
     # --- Generate Bot Response ---
     with st.spinner("Thinking..."):
-        # Pass the intent to ask_gemini to help it decide how to use context
-        bot_reply_content = ask_gemini(prompt, context=analysis_context, intent=intent)
+        if intent == 'summarize':
+             if analysis_context:
+                   # Ask Gemini to summarize the detailed summary we already have
+                   gemini_prompt = "Re-summarize the key findings from the provided analysis summary, focusing on the main takeaways."
+                   bot_reply_content = ask_gemini(gemini_prompt, context=analysis_context, intent='summarize') # Use summarize intent for strict context
+             else:
+                  bot_reply_content = "No analysis results have been generated yet to summarize. Please run an impact analysis using the filters above first."
+        else: # Handles 'explain' and 'unknown'
+            # Pass the detailed context (if available) to Gemini.
+            # ask_gemini will use it as background for these intents.
+            bot_reply_content = ask_gemini(prompt, context=analysis_context, intent=intent)
 
     # Add assistant response to chat history
     if bot_reply_content:
