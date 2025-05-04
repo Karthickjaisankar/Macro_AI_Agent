@@ -341,7 +341,7 @@ def get_bot_response_v3(user_input, analysis_df, macro_names):
          response = ask_gemini(f"As a macroeconomic chatbot assistant, answer the following user query concisely based on general knowledge or inferring from the request context related to churn and macroeconomics: '{user_input}'")
          # If Gemini fails, use a standard unknown response
          if "Sorry, I encountered an error" in response or "module is not configured" in response:
-              response = random.choice(UNKNOWN_RESPONSES)
+              response = random.choice("UNKNOWN_RESPONSES")
 
     # --- Append clarification if it exists ---
     if clarification and response and "Sorry" not in response:
@@ -351,11 +351,11 @@ def get_bot_response_v3(user_input, analysis_df, macro_names):
 
 
 # --- 4. Execute Initial Checks and Load/Prepare Data ---
-nltk_messages = check_nltk_resources()
+# nltk_messages = check_nltk_resources()
 churn_data_raw, macro_data_raw, load_error_message = load_data()
 
 # Display Initial Warnings/Errors (AFTER set_page_config)
-for msg in nltk_messages: st.toast(msg, icon="ℹ️")
+# for msg in nltk_messages: st.toast(msg, icon="ℹ️")
 if load_error_message: st.error(load_error_message, icon="🚨"); st.stop()
 
 # Prepare Data for Analysis
