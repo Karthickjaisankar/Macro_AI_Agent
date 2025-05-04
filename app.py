@@ -1,4 +1,4 @@
-# app.py (Impact Analysis + Gemini LLM + Context + Scaling)
+# app.py (Persistent Filters + Context + Gemini LLM + Scaling)
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -16,21 +16,20 @@ from scipy.stats import pearsonr
 from sklearn.preprocessing import MinMaxScaler # Import scaler
 
 # --- 1. Set Page Config FIRST ---
-st.set_page_config(page_title="Analytical Chatbot+", page_icon="🔬")
+st.set_page_config(page_title="Analytical Chatbot+", page_icon="🔬", layout="wide") # Use wide layout
 
 # --- 2. Gemini LLM Setup ---
-# This section is explicitly kept as requested
+# ... (Keep the Gemini setup code exactly as before) ...
 try:
     import google.generativeai as genai
     GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
     if not GEMINI_API_KEY:
         try:
             GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-            if not GEMINI_API_KEY: raise KeyError # Trigger exception if secret exists but is empty
+            if not GEMINI_API_KEY: raise KeyError
         except:
-            st.warning("GEMINI_API_KEY not found. LLM features (explanation, fallback) disabled.", icon="⚠️")
-            genai_configured = False
-            gemini_model = None
+            # Don't show warning here, show it later if LLM is actually needed
+            genai_configured = False; gemini_model = None
         else: # Key found in secrets
              genai.configure(api_key=GEMINI_API_KEY)
              gemini_model = genai.GenerativeModel('gemini-1.5-flash-latest')
@@ -39,21 +38,12 @@ try:
         genai.configure(api_key=GEMINI_API_KEY)
         gemini_model = genai.GenerativeModel('gemini-1.5-flash-latest')
         genai_configured = True
-
-    # Don't show toast on every run, maybe only on first load if needed
-    # if genai_configured and 'gemini_init_toast_shown' not in st.session_state:
-    #     st.toast("Gemini LLM Initialized.", icon="✅")
-    #     st.session_state.gemini_init_toast_shown = True
-
-
 except ImportError:
     st.warning("Google Generative AI library not found. LLM features disabled.", icon="⚠️")
-    genai_configured = False
-    gemini_model = None
+    genai_configured = False; gemini_model = None
 except Exception as e:
     st.error(f"Error initializing Gemini API: {e}", icon="🚨")
-    genai_configured = False
-    gemini_model = None
+    genai_configured = False; gemini_model = None
 # --- End Gemini Setup ---
 
 
@@ -61,16 +51,16 @@ except Exception as e:
 
 # NLTK Check Function
 def check_nltk_resources():
+    # ... (Keep existing NLTK check function) ...
     messages = []
     try: nltk.data.find('tokenizers/punkt')
     except nltk.downloader.DownloadError: messages.append("Downloading NLTK 'punkt'..."); nltk.download('punkt', quiet=True)
-    # Add other checks if needed
     return messages
 
 # Load Data Function
 @st.cache_data
 def load_data():
-    # ... (keep existing load_data function) ...
+    # ... (Keep existing load_data function) ...
     try:
         churn_df = pd.read_csv('Invol_churn_channel_wise_actuals_and_forecast.csv')
         macro_df = pd.read_csv('macroeconomic_data.csv')
@@ -86,7 +76,7 @@ def load_data():
 # Channel-Level Data Preparation Function
 @st.cache_data
 def prepare_channel_analysis_data(churn_df, macro_df):
-    # ... (keep existing prepare_channel_analysis_data function) ...
+    # ... (Keep existing prepare_channel_analysis_data function) ...
     if churn_df is None or macro_df is None: return None, "Source data not loaded."
     try:
         churn_agg = churn_df.groupby(['Date', 'Sales Channel'])['Invol_Churn_Value'].sum().reset_index()
@@ -104,7 +94,7 @@ def prepare_channel_analysis_data(churn_df, macro_df):
 
 # --- Analysis Functions ---
 def format_value(value, indicator_name=None):
-    # ... (keep existing implementation) ...
+    # ... (Keep existing implementation) ...
     if pd.isna(value): return "N/A"
     if indicator_name and ('rate' in indicator_name.lower() or 'gdp adjusted' in indicator_name.lower()): return f"{value:.1f}%"
     if abs(value) >= 1_000_000: return f"{value:,.0f}"
@@ -113,8 +103,7 @@ def format_value(value, indicator_name=None):
 
 # --- plot_trend with Scaling ---
 def plot_trend(df, column_names, date_range=None, title="Trend Analysis"):
-    """Generates a line plot for specified columns over time using scaled data."""
-    # ... (keep existing implementation) ...
+    # ... (Keep existing implementation) ...
     if df is None: return None, "Data not available."
     df_filtered = df.copy()
     if date_range and len(date_range) == 2: df_filtered = df_filtered[(df_filtered['Date'] >= date_range[0]) & (df_filtered['Date'] <= date_range[1])]
@@ -128,17 +117,17 @@ def plot_trend(df, column_names, date_range=None, title="Trend Analysis"):
     else: scaled = False
     try: plot_data_melted = pd.melt(plot_data, id_vars=['Date'], var_name='Indicator', value_name='Scaled Value' if scaled else 'Value')
     except Exception as e: return None, f"Error reshaping data for plotting: {e}"
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=(10, 5)) # Adjust figsize if needed
     sns.lineplot(x='Date', y='Scaled Value' if scaled else 'Value', hue='Indicator', data=plot_data_melted, ax=ax, marker='o')
     plot_title = title; y_label = "Value"
     if scaled: plot_title += " (Scaled)"; y_label = "Scaled Value (Min-Max)"
     ax.set_title(plot_title); ax.set_xlabel("Quarter"); ax.set_ylabel(y_label); plt.xticks(rotation=45)
-    ax.legend(title='Indicator', bbox_to_anchor=(1.05, 1), loc='upper left'); plt.tight_layout(rect=[0, 0, 0.85, 1])
+    ax.legend(title='Indicator', bbox_to_anchor=(1.05, 1), loc='upper left'); plt.tight_layout(rect=[0, 0, 0.85, 1]) # Adjust layout
     return fig, None
 
 
 def analyze_impact(df, target_var, predictor_vars, date_range=None):
-     # ... (keep existing implementation using statsmodels) ...
+     # ... (Keep existing implementation using statsmodels) ...
     if df is None or target_var not in df.columns: return None, f"Target '{target_var}' not found."
     df_filtered = df.copy()
     if date_range and len(date_range) == 2: df_filtered = df_filtered[(df_filtered['Date'] >= date_range[0]) & (df_filtered['Date'] <= date_range[1])]
@@ -155,13 +144,17 @@ def analyze_impact(df, target_var, predictor_vars, date_range=None):
     except Exception as e: return None, f"Regression error: {e}"
 
 
-# --- MODIFIED: Gemini Interaction Function (Improved Context Prompting) ---
+# --- Gemini Interaction Function ---
 def ask_gemini(prompt, context=None):
     """Sends a prompt to Gemini, optionally including context with clearer instructions."""
+    # ... (Keep existing implementation) ...
     if not genai_configured or not gemini_model:
-        return "My advanced knowledge module (Gemini LLM) is not configured or available."
+        # Check if warning needs to be displayed now
+        if 'gemini_warning_shown' not in st.session_state:
+            st.warning("GEMINI_API_KEY not found or invalid. LLM features disabled.", icon="⚠️")
+            st.session_state.gemini_warning_shown = True # Show only once per session
+        return "My advanced knowledge module (LLM) is not available."
 
-    # Construct the prompt, explicitly telling the LLM how to use the context
     if context:
         full_prompt = f"""Here is the summary of a previous data analysis:
 <analysis_summary>
@@ -172,42 +165,31 @@ Based *only* on the information in the analysis summary above, answer the follow
 
 If the query cannot be answered from the summary, state that the information is not available in the summary. Do not use external knowledge unless the query explicitly asks for it or is unrelated to the summary."""
     else:
-        # If no context, use a general prompt
         full_prompt = f"As an analytical chatbot assistant, answer the following user query concisely: '{prompt}'"
-
-
-    # st.info("Asking Gemini...", icon="🧠") # Optional
     try:
-        # Send the prompt to the Gemini model
         response = gemini_model.generate_content(full_prompt)
-
-        # Basic check for response content
-        if response.parts:
-            return response.text
-        else:
-            # Handle potential safety blocks or empty responses
-            st.warning(f"Gemini response issue: {response.prompt_feedback}", icon="⚠️")
-            return "I received an unusual response from my advanced module. Could you rephrase?"
-    except Exception as e:
-        # Handle API errors
-        st.error(f"Error calling Gemini API: {e}", icon="🚨")
-        return "Sorry, I encountered an error connecting to my advanced knowledge module."
+        if response.parts: return response.text
+        else: st.warning(f"Gemini response issue: {response.prompt_feedback}", icon="⚠️"); return "I received an unusual response from my advanced module."
+    except Exception as e: st.error(f"Error calling Gemini API: {e}", icon="🚨"); return "Sorry, error connecting to advanced knowledge module."
 
 
-# --- Parsing Function (Kept) ---
-def parse_intent_v2(text):
-    # ... (keep existing implementation) ...
+# --- Parsing Function (Simplified - Intent detection for chat) ---
+def parse_chat_intent(text):
+    """Detects primary intent for chat interaction (explain, summarize, unknown)."""
     text_lower = text.lower()
-    if 'impact' in text_lower or 'affect' in text_lower or 'influence' in text_lower: return 'impact'
-    if 'explain' in text_lower or 'tell me more' in text_lower or 'what is' in text_lower or 'define' in text_lower: return 'explain'
-    if 'summarize' in text_lower or 'summary' in text_lower: return 'summarize' # Add summarize intent
-    return 'unknown'
+    # Removed 'impact' as it's now handled by the form
+    if 'explain' in text_lower or 'tell me more' in text_lower or 'what is' in text_lower or 'define' in text_lower:
+        return 'explain'
+    if 'summarize' in text_lower or 'summary' in text_lower:
+        return 'summarize'
+    # Could add other intents here if needed
+    return 'unknown' # Default for Gemini fallback
 
-# --- Detailed Impact Analysis Function (Returns Summary Text) ---
+# --- Detailed Impact Analysis Function (Called by Form) ---
 def perform_detailed_impact_analysis(df, target_churn_col, indicators, start_q, end_q):
     """Performs correlation and regression, returns results including text summary."""
     # ... (Keep existing implementation that generates 'text_summary') ...
-    results = {'text_summary': f"Analysis Summary for {target_churn_col} ({start_q} to {end_q}):\n"} # Add target/dates to summary start
+    results = {'text_summary': f"Analysis Summary for {target_churn_col} ({start_q} to {end_q}):\n"}
     errors = []
     date_range = [start_q, end_q]
     correlations = None
@@ -246,118 +228,176 @@ def perform_detailed_impact_analysis(df, target_churn_col, indicators, start_q, 
 
 
 # --- 4. Execute Initial Checks and Load/Prepare Data ---
-# ... (Keep this section as is) ...
 # nltk_messages = check_nltk_resources()
 churn_data_raw, macro_data_raw, load_error_message = load_data()
+
+# Display Initial Warnings/Errors (AFTER set_page_config)
 # for msg in nltk_messages: st.toast(msg, icon="ℹ️")
 if load_error_message: st.error(load_error_message, icon="🚨"); st.stop()
+
+# Prepare Data for Analysis
 analysis_data, prep_error_message = prepare_channel_analysis_data(churn_data_raw, macro_data_raw)
 if prep_error_message: st.error(prep_error_message, icon="🚨"); st.stop()
-churn_channels = [col.replace('Churn_', '') for col in analysis_data.columns if col.startswith('Churn_')]
-macro_indicators_list = [col for col in analysis_data.columns if not col.startswith('Churn_') and col != 'Date']
-available_quarters = sorted(analysis_data['Date'].unique())
+
+# Extract available columns for widgets (handle case where data prep failed)
+if analysis_data is not None:
+    churn_channels = [col.replace('Churn_', '') for col in analysis_data.columns if col.startswith('Churn_')]
+    macro_indicators_list = [col for col in analysis_data.columns if not col.startswith('Churn_') and col != 'Date']
+    available_quarters = sorted(analysis_data['Date'].unique())
+else: # Set defaults if data prep failed to avoid errors rendering widgets
+    churn_channels = []
+    macro_indicators_list = []
+    available_quarters = []
 
 
 # --- 5. Initialize Session State ---
-# ... (Keep this section as is) ...
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Hello! Ask me to explain concepts, or analyze the impact of macro indicators on channel churn."}]
-if "analysis_requested" not in st.session_state:
-    st.session_state.analysis_requested = False
+    st.session_state.messages = [{"role": "assistant", "content": "Hello! Use the filters above to run an impact analysis, then ask follow-up questions."}]
+# Removed 'analysis_requested' state
 if "analysis_results" not in st.session_state: # Holds the full dict including summary text
     st.session_state.analysis_results = None
 
 # --- 6. Setup UI ---
-# ... (Keep this section as is) ...
 st.title("🔬 Analytical Chatbot + LLM")
-st.caption("Analyze churn impacts using CSV data or ask general/explanation questions.")
+st.caption("Configure and run impact analysis using the filters below. Then ask follow-up questions about the results.")
 
-# --- Main Chat Interface ---
-# ... (Keep this section as is) ...
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+# --- Persistent Impact Analysis Configuration Form ---
+st.markdown("---")
+st.subheader("Impact Analysis Configuration")
+with st.form("impact_analysis_form"):
+    # Use columns for better layout
+    col_target, col_preds = st.columns([1, 3])
+    with col_target:
+        selected_target_channel = st.selectbox("Target Churn Channel:",
+                                               options=churn_channels,
+                                               key="target_channel_select",
+                                               index=0 if churn_channels else None, # Handle empty list
+                                               disabled=not churn_channels) # Disable if no channels
+    with col_preds:
+        selected_indicators = st.multiselect("Predictor Macro Indicator(s):",
+                                             options=macro_indicators_list,
+                                             key="indicators_multi_select",
+                                             disabled=not macro_indicators_list) # Disable if no indicators
 
-# --- Impact Analysis Widget Section ---
-# ... (Keep this section as is) ...
-if st.session_state.analysis_requested:
-    st.markdown("---")
-    st.subheader("Impact Analysis Configuration")
-    with st.form("impact_analysis_form"):
-        selected_target_channel = st.selectbox("Target Churn Channel:", options=churn_channels, key="target_channel_select")
-        selected_indicators = st.multiselect("Predictor Macro Indicator(s):", options=macro_indicators_list, key="indicators_multi_select")
-        col1, col2 = st.columns(2)
-        with col1: selected_start_q = st.selectbox("Start Quarter:", options=available_quarters, index=0, key="start_q_select")
-        with col2: selected_end_q = st.selectbox("End Quarter:", options=available_quarters, index=len(available_quarters)-1, key="end_q_select")
-        submitted = st.form_submit_button("Run Impact Analysis")
-        if submitted:
-            if not selected_indicators: st.warning("Please select at least one macro indicator.")
-            elif selected_start_q > selected_end_q: st.warning("Start Quarter cannot be after End Quarter.")
-            else:
-                with st.spinner("Performing detailed analysis..."):
-                    target_churn_col = f"Churn_{selected_target_channel}"
-                    st.session_state.analysis_results = perform_detailed_impact_analysis(
-                        analysis_data, target_churn_col, selected_indicators, selected_start_q, selected_end_q
-                    )
-                    st.session_state.analysis_requested = False # Hide widgets
-                    st.rerun()
+    col_start, col_end = st.columns(2)
+    with col_start:
+        selected_start_q = st.selectbox("Start Quarter:",
+                                        options=available_quarters,
+                                        index=0 if available_quarters else None,
+                                        key="start_q_select",
+                                        disabled=not available_quarters)
+    with col_end:
+        selected_end_q = st.selectbox("End Quarter:",
+                                      options=available_quarters,
+                                      index=len(available_quarters)-1 if available_quarters else None,
+                                      key="end_q_select",
+                                      disabled=not available_quarters)
+
+    submitted = st.form_submit_button("📊 Run Impact Analysis", disabled=not analysis_data is not None)
+
+    if submitted:
+        # Validation within the form submit logic
+        if not selected_target_channel:
+             st.warning("Please select a target churn channel.")
+        elif not selected_indicators:
+            st.warning("Please select at least one macro indicator.")
+        elif not selected_start_q or not selected_end_q:
+             st.warning("Please select a valid date range.")
+        elif selected_start_q > selected_end_q:
+            st.warning("Start Quarter cannot be after End Quarter.")
+        else:
+            with st.spinner("Performing detailed analysis..."):
+                target_churn_col = f"Churn_{selected_target_channel}"
+                # Store the entire results dictionary in session state
+                st.session_state.analysis_results = perform_detailed_impact_analysis(
+                    analysis_data, target_churn_col, selected_indicators, selected_start_q, selected_end_q
+                )
+            # Add a message to chat indicating analysis is complete
+            st.session_state.messages.append({"role": "assistant", "content": f"Impact analysis complete for {target_churn_col} ({selected_start_q} - {selected_end_q}). Results are displayed below. Feel free to ask follow-up questions."})
+            st.rerun() # Rerun to display results and updated chat
 
 # --- Display Analysis Results ---
-# ... (Keep this section as is) ...
 if st.session_state.analysis_results:
     st.markdown("---")
-    st.subheader("Impact Analysis Results")
+    st.subheader("Latest Impact Analysis Results")
     results = st.session_state.analysis_results
+
+    # Display errors first
     if results.get('errors'):
         for error in results['errors']: st.error(error, icon="🚨")
+
+    # Display Text Summary
     if results.get('text_summary'):
         st.markdown("**Analysis Summary:**")
-        st.markdown(results['text_summary'])
-    if 'correlations' in results and results['correlations'] is not None and not results['correlations'].empty:
-        st.markdown("**Correlations with Target:**")
-        st.dataframe(results['correlations'].apply(lambda x: f"{x:.2f}"))
-    if 'regression_summary_obj' in results and results['regression_summary_obj'] is not None:
-        st.markdown("**Detailed Regression Summary:**")
-        st.text(results['regression_summary_obj'])
-    if 'figure' in results and results['figure'] is not None:
-        st.markdown("**Trend Plot (Scaled):**")
-        st.pyplot(results['figure'])
-    st.markdown("*(Note: Analysis uses dummy data...)*")
-    # Keep results in state until next interaction clears it
+        st.markdown(results['text_summary']) # Display the generated summary
 
+    # Use columns for better layout of results
+    res_col1, res_col2 = st.columns(2)
 
-# --- Handle User Input ---
-# ... (Keep this section as is, it already passes context to ask_gemini) ...
-if prompt := st.chat_input("Ask about impact, explain concepts, or summarize results..."):
+    with res_col1:
+        # Display Correlations
+        if 'correlations' in results and results['correlations'] is not None and not results['correlations'].empty:
+            st.markdown("**Correlations with Target:**")
+            st.dataframe(results['correlations'].apply(lambda x: f"{x:.2f}"))
+
+        # Display Plot
+        if 'figure' in results and results['figure'] is not None:
+            st.markdown("**Trend Plot (Scaled):**")
+            st.pyplot(results['figure'])
+
+    with res_col2:
+        # Display Regression Summary Object
+        if 'regression_summary_obj' in results and results['regression_summary_obj'] is not None:
+            st.markdown("**Detailed Regression Summary:**")
+            st.text(results['regression_summary_obj']) # Display full statsmodels summary
+
+    st.markdown("*(Note: Analysis uses dummy data. Correlation/association doesn't imply causation.)*")
+    # Results remain in state until overwritten by a new analysis run
+
+# --- Chat Interface ---
+st.markdown("---")
+st.subheader("Ask Questions")
+
+# Display chat messages
+container = st.container() # Use a container for chat history
+with container:
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+# Handle User Input via chat box
+if prompt := st.chat_input("Ask follow-up questions about the analysis or general questions..."):
+    # Add user message to chat history immediately
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"): st.markdown(prompt)
-    intent = parse_intent_v2(prompt)
+
+    # Parse intent for chat interaction
+    intent = parse_chat_intent(prompt)
     bot_reply_content = None
-    # Retrieve context BEFORE clearing results for the current turn
+
+    # Retrieve context from the latest analysis run (if any)
     analysis_context = st.session_state.analysis_results.get('text_summary') if st.session_state.analysis_results else None
-    # Clear previous analysis results now, so they don't redisplay unless a new analysis is run
-    st.session_state.analysis_results = None
 
-    if intent == 'impact':
-        st.session_state.analysis_requested = True
-        bot_reply_content = "Okay, please use the widgets below to configure the impact analysis."
-        st.rerun()
-    elif intent == 'explain':
-        with st.spinner("Thinking..."):
+    # --- Generate Bot Response ---
+    with st.spinner("Thinking..."):
+        if intent == 'explain':
             gemini_prompt = f"Explain the following concept in the context of business/economics: '{prompt}'. Keep it concise for a chatbot."
-            bot_reply_content = ask_gemini(gemini_prompt, context=analysis_context)
-    elif intent == 'summarize':
-         if analysis_context:
-              with st.spinner("Summarizing analysis..."):
-                   gemini_prompt = "Summarize the key findings from the previous analysis."
-                   bot_reply_content = ask_gemini(gemini_prompt, context=analysis_context)
-         else: bot_reply_content = "No analysis results available to summarize."
-    else: # Fallback
-        with st.spinner("Thinking..."):
-            gemini_prompt = f"As an analytical chatbot assistant, answer the following user query: '{prompt}'"
-            bot_reply_content = ask_gemini(gemini_prompt, context=analysis_context)
+            bot_reply_content = ask_gemini(gemini_prompt, context=analysis_context) # Pass context
 
-    if bot_reply_content: # Add response only if we didn't rerun
+        elif intent == 'summarize':
+             if analysis_context:
+                   gemini_prompt = "Summarize the key findings from the previous analysis."
+                   bot_reply_content = ask_gemini(gemini_prompt, context=analysis_context) # Pass context
+             else:
+                  bot_reply_content = "No analysis results are currently available to summarize. Please run an impact analysis using the filters above first."
+
+        else: # Fallback for 'unknown' intent
+            gemini_prompt = f"As an analytical chatbot assistant, answer the following user query: '{prompt}'"
+            bot_reply_content = ask_gemini(gemini_prompt, context=analysis_context) # Pass context
+
+    # Add assistant response to chat history
+    if bot_reply_content:
         st.session_state.messages.append({"role": "assistant", "content": bot_reply_content})
-        with st.chat_message("assistant"): st.markdown(bot_reply_content)
+
+    # Rerun to display the updated chat immediately
+    st.rerun()
 
