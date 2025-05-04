@@ -8,4 +8,5 @@ seaborn
 statsmodels
 nltk
 google-generativeai
+lxml
 # Add any other specific libraries you installed
