@@ -1,4 +1,4 @@
-# app.py (Persistent Filters + Context + Gemini LLM + Scaling)
+# app.py (Persistent Filters + Context + Gemini LLM + Scaling - V2)
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -28,7 +28,6 @@ try:
             GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
             if not GEMINI_API_KEY: raise KeyError
         except:
-            # Don't show warning here, show it later if LLM is actually needed
             genai_configured = False; gemini_model = None
         else: # Key found in secrets
              genai.configure(api_key=GEMINI_API_KEY)
@@ -145,17 +144,21 @@ def analyze_impact(df, target_var, predictor_vars, date_range=None):
 
 
 # --- Gemini Interaction Function ---
-def ask_gemini(prompt, context=None):
-    """Sends a prompt to Gemini, optionally including context with clearer instructions."""
-    # ... (Keep existing implementation) ...
+def ask_gemini(prompt, context=None, force_general=False):
+    """
+    Sends a prompt to Gemini.
+    Uses context if provided AND force_general is False.
+    If force_general is True, ignores context and asks general knowledge question.
+    """
     if not genai_configured or not gemini_model:
-        # Check if warning needs to be displayed now
         if 'gemini_warning_shown' not in st.session_state:
             st.warning("GEMINI_API_KEY not found or invalid. LLM features disabled.", icon="⚠️")
-            st.session_state.gemini_warning_shown = True # Show only once per session
+            st.session_state.gemini_warning_shown = True
         return "My advanced knowledge module (LLM) is not available."
 
-    if context:
+    # Decide which prompt structure to use
+    if context and not force_general:
+        # Use context-constrained prompt
         full_prompt = f"""Here is the summary of a previous data analysis:
 <analysis_summary>
 {context}
@@ -165,7 +168,10 @@ Based *only* on the information in the analysis summary above, answer the follow
 
 If the query cannot be answered from the summary, state that the information is not available in the summary. Do not use external knowledge unless the query explicitly asks for it or is unrelated to the summary."""
     else:
+        # Use general-purpose prompt (ignores context even if passed)
         full_prompt = f"As an analytical chatbot assistant, answer the following user query concisely: '{prompt}'"
+
+    # st.info("Asking Gemini...", icon="🧠") # Optional
     try:
         response = gemini_model.generate_content(full_prompt)
         if response.parts: return response.text
@@ -175,15 +181,43 @@ If the query cannot be answered from the summary, state that the information is 
 
 # --- Parsing Function (Simplified - Intent detection for chat) ---
 def parse_chat_intent(text):
-    """Detects primary intent for chat interaction (explain, summarize, unknown)."""
+    # ... (Keep existing implementation) ...
     text_lower = text.lower()
-    # Removed 'impact' as it's now handled by the form
-    if 'explain' in text_lower or 'tell me more' in text_lower or 'what is' in text_lower or 'define' in text_lower:
-        return 'explain'
-    if 'summarize' in text_lower or 'summary' in text_lower:
-        return 'summarize'
-    # Could add other intents here if needed
-    return 'unknown' # Default for Gemini fallback
+    if 'impact' in text_lower or 'affect' in text_lower or 'influence' in text_lower: return 'impact' # Although handled by form, useful for context check
+    if 'explain' in text_lower or 'tell me more' in text_lower or 'what is' in text_lower or 'define' in text_lower: return 'explain'
+    if 'summarize' in text_lower or 'summary' in text_lower: return 'summarize'
+    return 'unknown'
+
+# --- NEW: Helper to check if prompt is related to analysis context ---
+def is_follow_up(prompt, context):
+    """Simple check if the prompt seems related to the analysis context."""
+    if not context: return False
+    prompt_lower = prompt.lower()
+    context_lower = context.lower()
+    # Keywords indicating follow-up
+    follow_up_keywords = ["result", "analysis", "summary", "coefficient", "correlation", "trend", "impact", "significant", "r-squared", "plot", "chart", "graph"]
+    if any(keyword in prompt_lower for keyword in follow_up_keywords):
+        return True
+    # Check if prompt mentions variables present in the context summary
+    # (This requires parsing variable names from context - can be complex, simple check for now)
+    # Example: Check if predictor names from context are in prompt
+    try:
+        lines = context_lower.split('\n')
+        for line in lines:
+            if line.strip().startswith("- significant predictors"):
+                predictors_str = line.split(":")[-1]
+                predictors = [p.strip() for p in predictors_str.split(',')]
+                if any(p in prompt_lower for p in predictors if p):
+                    return True
+            if line.strip().startswith("- strongest"): # Check correlation terms
+                indicator = line.split(':')[1].split('(')[0].strip()
+                if indicator in prompt_lower:
+                    return True
+    except Exception:
+        pass # Ignore errors during this simple check
+
+    return False # Assume not a follow-up if keywords/variables aren't found
+
 
 # --- Detailed Impact Analysis Function (Called by Form) ---
 def perform_detailed_impact_analysis(df, target_churn_col, indicators, start_q, end_q):
@@ -228,171 +262,127 @@ def perform_detailed_impact_analysis(df, target_churn_col, indicators, start_q, 
 
 
 # --- 4. Execute Initial Checks and Load/Prepare Data ---
+# ... (Keep this section as is) ...
 # nltk_messages = check_nltk_resources()
 churn_data_raw, macro_data_raw, load_error_message = load_data()
-
-# Display Initial Warnings/Errors (AFTER set_page_config)
 # for msg in nltk_messages: st.toast(msg, icon="ℹ️")
 if load_error_message: st.error(load_error_message, icon="🚨"); st.stop()
-
-# Prepare Data for Analysis
 analysis_data, prep_error_message = prepare_channel_analysis_data(churn_data_raw, macro_data_raw)
 if prep_error_message: st.error(prep_error_message, icon="🚨"); st.stop()
-
-# Extract available columns for widgets (handle case where data prep failed)
 if analysis_data is not None:
     churn_channels = [col.replace('Churn_', '') for col in analysis_data.columns if col.startswith('Churn_')]
     macro_indicators_list = [col for col in analysis_data.columns if not col.startswith('Churn_') and col != 'Date']
     available_quarters = sorted(analysis_data['Date'].unique())
-else: # Set defaults if data prep failed to avoid errors rendering widgets
-    churn_channels = []
-    macro_indicators_list = []
-    available_quarters = []
+else: churn_channels, macro_indicators_list, available_quarters = [], [], []
 
 
 # --- 5. Initialize Session State ---
+# ... (Keep this section as is) ...
 if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": "Hello! Use the filters above to run an impact analysis, then ask follow-up questions."}]
-# Removed 'analysis_requested' state
-if "analysis_results" not in st.session_state: # Holds the full dict including summary text
+if "analysis_results" not in st.session_state:
     st.session_state.analysis_results = None
 
 # --- 6. Setup UI ---
+# ... (Keep this section as is) ...
 st.title("🔬 Analytical Chatbot + LLM")
 st.caption("Configure and run impact analysis using the filters below. Then ask follow-up questions about the results.")
 
 # --- Persistent Impact Analysis Configuration Form ---
+# ... (Keep this section as is) ...
 st.markdown("---")
 st.subheader("Impact Analysis Configuration")
 with st.form("impact_analysis_form"):
-    # Use columns for better layout
     col_target, col_preds = st.columns([1, 3])
-    with col_target:
-        selected_target_channel = st.selectbox("Target Churn Channel:",
-                                               options=churn_channels,
-                                               key="target_channel_select",
-                                               index=0 if churn_channels else None, # Handle empty list
-                                               disabled=not churn_channels) # Disable if no channels
-    with col_preds:
-        selected_indicators = st.multiselect("Predictor Macro Indicator(s):",
-                                             options=macro_indicators_list,
-                                             key="indicators_multi_select",
-                                             disabled=not macro_indicators_list) # Disable if no indicators
-
+    with col_target: selected_target_channel = st.selectbox("Target Churn Channel:", options=churn_channels, key="target_channel_select", index=0 if churn_channels else None, disabled=not churn_channels)
+    with col_preds: selected_indicators = st.multiselect("Predictor Macro Indicator(s):", options=macro_indicators_list, key="indicators_multi_select", disabled=not macro_indicators_list)
     col_start, col_end = st.columns(2)
-    with col_start:
-        selected_start_q = st.selectbox("Start Quarter:",
-                                        options=available_quarters,
-                                        index=0 if available_quarters else None,
-                                        key="start_q_select",
-                                        disabled=not available_quarters)
-    with col_end:
-        selected_end_q = st.selectbox("End Quarter:",
-                                      options=available_quarters,
-                                      index=len(available_quarters)-1 if available_quarters else None,
-                                      key="end_q_select",
-                                      disabled=not available_quarters)
-
+    with col_start: selected_start_q = st.selectbox("Start Quarter:", options=available_quarters, index=0 if available_quarters else None, key="start_q_select", disabled=not available_quarters)
+    with col_end: selected_end_q = st.selectbox("End Quarter:", options=available_quarters, index=len(available_quarters)-1 if available_quarters else None, key="end_q_select", disabled=not available_quarters)
     submitted = st.form_submit_button("📊 Run Impact Analysis", disabled=not analysis_data is not None)
-
     if submitted:
-        # Validation within the form submit logic
-        if not selected_target_channel:
-             st.warning("Please select a target churn channel.")
-        elif not selected_indicators:
-            st.warning("Please select at least one macro indicator.")
-        elif not selected_start_q or not selected_end_q:
-             st.warning("Please select a valid date range.")
-        elif selected_start_q > selected_end_q:
-            st.warning("Start Quarter cannot be after End Quarter.")
+        if not selected_target_channel: st.warning("Please select a target churn channel.")
+        elif not selected_indicators: st.warning("Please select at least one macro indicator.")
+        elif not selected_start_q or not selected_end_q: st.warning("Please select a valid date range.")
+        elif selected_start_q > selected_end_q: st.warning("Start Quarter cannot be after End Quarter.")
         else:
             with st.spinner("Performing detailed analysis..."):
                 target_churn_col = f"Churn_{selected_target_channel}"
-                # Store the entire results dictionary in session state
-                st.session_state.analysis_results = perform_detailed_impact_analysis(
-                    analysis_data, target_churn_col, selected_indicators, selected_start_q, selected_end_q
-                )
-            # Add a message to chat indicating analysis is complete
+                st.session_state.analysis_results = perform_detailed_impact_analysis(analysis_data, target_churn_col, selected_indicators, selected_start_q, selected_end_q)
             st.session_state.messages.append({"role": "assistant", "content": f"Impact analysis complete for {target_churn_col} ({selected_start_q} - {selected_end_q}). Results are displayed below. Feel free to ask follow-up questions."})
-            st.rerun() # Rerun to display results and updated chat
+            st.rerun()
 
 # --- Display Analysis Results ---
+# ... (Keep this section as is) ...
 if st.session_state.analysis_results:
     st.markdown("---")
     st.subheader("Latest Impact Analysis Results")
     results = st.session_state.analysis_results
-
-    # Display errors first
     if results.get('errors'):
         for error in results['errors']: st.error(error, icon="🚨")
-
-    # Display Text Summary
     if results.get('text_summary'):
         st.markdown("**Analysis Summary:**")
-        st.markdown(results['text_summary']) # Display the generated summary
-
-    # Use columns for better layout of results
+        st.markdown(results['text_summary'])
     res_col1, res_col2 = st.columns(2)
-
     with res_col1:
-        # Display Correlations
         if 'correlations' in results and results['correlations'] is not None and not results['correlations'].empty:
             st.markdown("**Correlations with Target:**")
             st.dataframe(results['correlations'].apply(lambda x: f"{x:.2f}"))
-
-        # Display Plot
         if 'figure' in results and results['figure'] is not None:
             st.markdown("**Trend Plot (Scaled):**")
             st.pyplot(results['figure'])
-
     with res_col2:
-        # Display Regression Summary Object
         if 'regression_summary_obj' in results and results['regression_summary_obj'] is not None:
             st.markdown("**Detailed Regression Summary:**")
-            st.text(results['regression_summary_obj']) # Display full statsmodels summary
+            st.text(results['regression_summary_obj'])
+    st.markdown("*(Note: Analysis uses dummy data...)*")
 
-    st.markdown("*(Note: Analysis uses dummy data. Correlation/association doesn't imply causation.)*")
-    # Results remain in state until overwritten by a new analysis run
 
 # --- Chat Interface ---
 st.markdown("---")
 st.subheader("Ask Questions")
 
 # Display chat messages
-container = st.container() # Use a container for chat history
+container = st.container()
 with container:
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-# Handle User Input via chat box
+# --- MODIFIED: Handle User Input via chat box ---
 if prompt := st.chat_input("Ask follow-up questions about the analysis or general questions..."):
-    # Add user message to chat history immediately
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    # Parse intent for chat interaction
     intent = parse_chat_intent(prompt)
     bot_reply_content = None
-
-    # Retrieve context from the latest analysis run (if any)
     analysis_context = st.session_state.analysis_results.get('text_summary') if st.session_state.analysis_results else None
 
     # --- Generate Bot Response ---
     with st.spinner("Thinking..."):
+        # Determine if the LLM should use context or general knowledge
+        force_general_mode = False
+        if analysis_context:
+            # If context exists, check if the prompt is a follow-up
+            if not is_follow_up(prompt, analysis_context):
+                # If it's NOT a follow-up, force general mode
+                force_general_mode = True
+
+        # Handle intents
         if intent == 'explain':
             gemini_prompt = f"Explain the following concept in the context of business/economics: '{prompt}'. Keep it concise for a chatbot."
-            bot_reply_content = ask_gemini(gemini_prompt, context=analysis_context) # Pass context
+            bot_reply_content = ask_gemini(gemini_prompt, context=analysis_context, force_general=force_general_mode)
 
         elif intent == 'summarize':
              if analysis_context:
                    gemini_prompt = "Summarize the key findings from the previous analysis."
-                   bot_reply_content = ask_gemini(gemini_prompt, context=analysis_context) # Pass context
+                   # Always use context for summarization request
+                   bot_reply_content = ask_gemini(gemini_prompt, context=analysis_context, force_general=False)
              else:
                   bot_reply_content = "No analysis results are currently available to summarize. Please run an impact analysis using the filters above first."
 
         else: # Fallback for 'unknown' intent
             gemini_prompt = f"As an analytical chatbot assistant, answer the following user query: '{prompt}'"
-            bot_reply_content = ask_gemini(gemini_prompt, context=analysis_context) # Pass context
+            bot_reply_content = ask_gemini(gemini_prompt, context=analysis_context, force_general=force_general_mode)
 
     # Add assistant response to chat history
     if bot_reply_content:
