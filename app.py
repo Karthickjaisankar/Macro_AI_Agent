@@ -197,11 +197,11 @@ def perform_detailed_impact_analysis(df, target_churn_col, indicators, start_q, 
     return results
 
 # --- 4. Execute Initial Checks and Load/Prepare Data ---
-nltk_messages = check_nltk_resources()
+# nltk_messages = check_nltk_resources()
 churn_data_raw, macro_data_raw, load_error_message = load_data()
 
 # Display Initial Warnings/Errors (AFTER set_page_config)
-for msg in nltk_messages: st.toast(msg, icon="ℹ️")
+# for msg in nltk_messages: st.toast(msg, icon="ℹ️")
 if load_error_message: st.error(load_error_message, icon="🚨"); st.stop()
 
 # Prepare Data for Analysis
